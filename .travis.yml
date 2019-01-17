@@ -6,7 +6,7 @@ install:
 
 before_script:
   # 将各个文件夹中的图片文件拷贝到发布目录images中
-  - cp -r `find . -name *.png -o -name *.jpg` images
+  - cp -r `find source -name *.png -o -name *.jpg` source/images
   # 替换.md文件中图片资源的目录
   - sed -i -e "s~./assets~/images~g" `grep ./assets -rl source`
   # 初始化 git配置
