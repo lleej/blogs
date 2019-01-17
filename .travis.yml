@@ -1,0 +1,25 @@
+language: node_js
+node_js: 10.15.0
+
+install:
+  - npm install
+
+before_script:
+  # 将各个文件夹中的图片文件拷贝到发布目录images中
+  - cp -r `find . -name *.png -o -name *.jpg` images
+  # 替换.md文件中图片资源的目录
+  - sed -i -e "s~./assets~/images~g" `grep ./assets -rl source`
+  # 初始化 git配置
+  - git config user.name "lleej"
+  - git config user.email "lleej@qq.com"
+  # 替换_config.yml 文件中发布库的地址
+  - sed -i -e "s~git@github.com:lleej/lleej.github.io.git~https://${ACCESS_TOKEN}@github.com/lleej/lleej.github.io.git~" _config.yml
+
+script:
+  - hexo clean
+  - hexo g
+  - hexo d
+
+after_script:
+
+
