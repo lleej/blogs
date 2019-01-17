@@ -5,10 +5,17 @@ install:
   - npm install
 
 before_script:
+  - cd source
+  # 清空images目录
+  - rm -rf images
+  # 创建 images目录
+  - mkdir images
   # 将各个文件夹中的图片文件拷贝到发布目录images中
-  - cp -r `find source -name *.png -o -name *.jpg` source/images
+  - cp -r `find . -name *.png -o -name *.jpg` images
   # 替换.md文件中图片资源的目录
-  - sed -i -e "s~./assets~/images~g" `grep ./assets -rl source`
+  - sed -i -e "s~./assets~/images~g" `grep ./assets -rl .`
+  # 退到根目录下
+  - cd ..
   # 初始化 git配置
   - git config user.name "lleej"
   - git config user.email "lleej@qq.com"
