@@ -99,6 +99,15 @@ changyan:
 livere_datauid:
 
 # ===========================================
+# post setting
+# ===========================================
+# Automatically Excerpt. Not recommend.
+# Use <!-- more --> in the post to control excerpt accurately.
+auto_excerpt:
+  enable: true
+  length: 150
+
+# ===========================================
 # Version
 # ===========================================
 version: 2.10.2
