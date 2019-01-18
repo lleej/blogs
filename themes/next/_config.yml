@@ -157,9 +157,9 @@ menu_settings:
 # ---------------------------------------------------------------
 
 # Schemes
-#scheme: Muse
+scheme: Muse
 #scheme: Mist
-scheme: Pisces
+#scheme: Pisces
 #scheme: Gemini
 
 
@@ -197,7 +197,7 @@ social_icons:
 # Usage: `permalink || title`
 # Value before `||` delimeter is the target permalink.
 # Value after `||` delimeter is the title and aria-label name.
-github_banner: https://github.com/lleej || Follow me on GitHub
+#github_banner: https://github.com/lleej || Follow me on GitHub
 
 # Blog rolls
 links_icon: link
@@ -282,18 +282,18 @@ auto_excerpt:
 
 # Read more button
 # If true, the read more button would be displayed in excerpt section.
-read_more_btn: true
+read_more_btn: false
 
 # Post meta display settings
 post_meta:
   item_text: true
   created_at: true
   updated_at:
-    enabled: true
+    enabled: false
     # If true, show updated date label only if `updated date` different from `created date` (post edited in another day than was created).
     # And if post will edited in same day as created, edited time will show in popup title under created time label.
     # If false show anyway, but if post edited in same day, show only edited time.
-    another_day: true
+    another_day: false
   categories: true
 
 # Post wordcount display settings

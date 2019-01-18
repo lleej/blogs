@@ -3,7 +3,7 @@
 ## Source: https://github.com/hexojs/hexo/
 
 # Site
-title: 哈喽
+title: 阿杰'blog
 subtitle: 活到老，学到老
 description:
 keywords:
@@ -13,7 +13,7 @@ timezone:
 
 # URL
 ## If your site is put in a subdirectory, set url as 'http://yoursite.com/child' and root as '/child/'
-url: http://yoursite.com
+url: http://www.go2sts.com
 root: /
 permalink: :year/:month/:day/:title/
 permalink_defaults:
@@ -59,11 +59,11 @@ category_map:
 tag_map:
 
 # 添加字数统计功能
-symbols_count_time:
-  symbols: true
-  time: true
-  total_symbols: true
-  total_time: true
+# symbols_count_time:
+#   symbols: true
+#   time: true
+#   total_symbols: true
+#   total_time: true
 
 
 # Date / Time format
@@ -81,7 +81,7 @@ pagination_dir: page
 # Extensions
 ## Plugins: https://hexo.io/plugins/
 ## Themes: https://hexo.io/themes/
-theme: next
+theme: even
 
 # Deployment
 ## Docs: https://hexo.io/docs/deployment.html
