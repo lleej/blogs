@@ -3,11 +3,11 @@
 ## Source: https://github.com/hexojs/hexo/
 
 # Site
-title: 杰克的个人博客
+title: 哈喽
 subtitle: 活到老，学到老
 description:
 keywords:
-author: 李杰
+author: 阿杰
 language: zh-CN
 timezone:
 
@@ -57,6 +57,14 @@ index_generator:
 default_category: uncategorized
 category_map:
 tag_map:
+
+# 添加字数统计功能
+symbols_count_time:
+  symbols: true
+  time: true
+  total_symbols: true
+  total_time: true
+
 
 # Date / Time format
 ## Hexo uses Moment.js to parse and display date
