@@ -15,7 +15,7 @@ before_script:
 
   ### 将要发布的文章复制到发布目录中
   # 1. 清空source/_posts目录
-  -rm -rf source/_posts
+  - rm -rf source/_posts
   # 2. 创建 source/_posts目录
   - mkdir source/_posts
   # 3. 把需要发布的文章拷贝到发布目录中^开始 $结尾 .任意一个字符
