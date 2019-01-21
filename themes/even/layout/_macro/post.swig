@@ -41,9 +41,9 @@
         {% elif post.excerpt %}
           {% set excerpt = post.excerpt %}
         {% elif theme.auto_excerpt.enable %}
-          {% set content = post.content | replace('<td class="gutter">.*?</td>', "", "g") | striptags %}
-          {% set excerpt = content.substring(0, theme.auto_excerpt.length) %}
-          {% if content.length > theme.auto_excerpt.length %}
+          {# set content = post.content | replace('<td class="gutter">.*?</td>', "", "g") | striptags #}
+          {% set excerpt = post.content.substring(0, theme.auto_excerpt.length) %}
+          {% if post.content.length > theme.auto_excerpt.length %}
             {% set excerpt = excerpt + "..." %}
           {% endif %}
         {% endif %}
