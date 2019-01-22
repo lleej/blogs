@@ -22,7 +22,7 @@ before_script:
   - cp -r `grep ^layout:.post$ -rl notes` source/_posts
   # 4. 替换发布目录中文章中图片资源的地址
   - a=`grep ./assets -rl source/_posts`
-  - if [ ! -z $a ]; then sed -i -e "s~./assets~/images~g"; fi;
+  - if [ ! -z $a ]; then sed -i -e "s~./assets~/images~g" `grep ./assets -rl source/_posts`; fi;
 
   ### 设置git相关的配置信息
   # 初始化 git配置
