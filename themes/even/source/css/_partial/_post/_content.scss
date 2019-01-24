@@ -5,8 +5,9 @@
 .post-content {
   @for $i from 1 through 6 {
     h#{$i} {
-      font-weight: 400;
+      font-weight: 600;
       font-family: $global-serif-font-family;
+      border-bottom: $post-border;
     }
   }
 
