@@ -1,4 +1,4 @@
-title: 1.Git入门
+title: 1.Git-入门
 date: 2018-12-12
 tags: GIT
 categories: 配置管理
