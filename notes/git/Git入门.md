@@ -240,7 +240,7 @@ $ git config --local --unset user.email
 - **D**表示文件被删除或者重命名（重命名=删除+新建）
 - **U**表示新创建的文件或者重命名
 
-![VSCode-GIT-Contrl](./assets/VSCode-GIT-control.png)
+![VSCode-GIT-Control](./assets/VSCode-GIT-control.png)
 
 ### 分支管理
 
