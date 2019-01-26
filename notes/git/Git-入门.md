@@ -149,7 +149,7 @@ public/
 
 ## 环境搭建
 
-如何在Windows环境下搭建GIT环境，其他系统的搭建请参照[官方指南](https://git-scm.com)。
+在Windows环境下搭建GIT环境，其他系统的搭建请参照[官方指南](https://git-scm.com)。
 
 ### 安装
 
@@ -349,7 +349,7 @@ $ git init [仓库名称]
 $ git add .
 # 添加指定修改的文件
 $ git add [文件名]
-# 添加版本库中文件的变更
+# 添加所有版本库中文件的变更
 $ git add -u
 ```
 
@@ -365,10 +365,11 @@ $ git diff --cached [文件名]
 **移除暂存文件**
 
 ```bash
+$ git rm --cached [文件名]
 $ git reset HEAD [文件名]
 ```
 
-**取消工作区修改**
+**取消工作区中文件的修改**
 
 ```bash
 $ git checkout --[文件名]
