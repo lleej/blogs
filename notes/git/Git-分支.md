@@ -40,17 +40,11 @@ layout: draft
 
 以上是对分支概念的简单介绍，在正式开始之前还需要对上文提到的“提交”和“分支”以及之间关系做进一步的解释，看看GIT是如何实现的，这将有助于对分支的深入理解。
 
-## 理解分支和提交
+## 提交
 
-为了避免理解上的分歧，我们统称GIT中“版本”为“提交”英文名“commit”。也就是说，每次`git commit`都会在GIT版本库中创建一个新的版本，我们称这个“版本”为“提交”，这样就与`Vx.xx`版本区别开。
+为了避免理解上的分歧，我们统称GIT中“版本”为“提交”英文名“commit”。也就是说，每次`git commit`都会在GIT版本库中创建一个新的版本，我们称这个“版本”为“提交”。我们通常说的V1.0、V2.1等版本，其实是在“提交”上打的标签而已。
 
-### 提交
-
-在GIT中，版本的差异是通过“提交”进行管理的，每次通过`git commit`都会创建一个新的“提交对象”，以文件形式存储在GIT版本库中，记录版本间的差异。
-
-下面以一个网页项目为例，详细介绍“提交对象”。
-
-**工作区内容**
+下面以一个网页项目为例进行说明，其目录结构和文件如下所示，共有2个目录和4个文件组成
 
 ```bash
 # test仓库中的文件结构
@@ -63,163 +57,31 @@ layout: draft
     └── main.css
 ```
 
-将工作区内的代码提交到版本库后，在GIT版本库中存储的对象如下图所示
+### GIT中的提交
+
+将工作目录中的全部文件通过`git commit`指令提交到`Git仓库`中，仓库创建的文件如下所示
 
 ![blob-tree-commit](./assets/blob-tree-commit.png)
 
-在深入研究Git前，首先需要明白Git的几个核心概念，这样便于后面的学习和理解
+**`blob`文件**，右侧绿色的部分，每个代表一个文件，与工作目录中的文件一一对应
 
-下图是其中最主要的三个对象类型`commit` `tree` `blob`之间的关系。
+**`tree`文件**，中间黄色的部分，每个代表一个目录，包括1个根目录以及2个子目录
 
-![image-20181213145842415](D:/blogs/notes/git/assets/blob-tree-commit.png)
+**`commit`文件**，左侧青色的部分，代表一个提交，提交通过`tree文件(6025e)`管理提交的文件和目录
 
-## commit
+**文件名是哈希值**，所有的文件名为文件内容的`sha-1`哈希值，长度40
 
-`commit`是存储在`git`仓库中的快照，每次执行`git commit`指令后，在`git`仓库中都会创建一个新的`commit`对象
+通过这三类文件，Git对提交的版本进行管理。
 
-### 是什么？
+### 提交间关联
 
-1. `git`内置的对象类型
-2. 表现为`SHA-1`哈希值（长度40）
-3. 一次提交的快照
-4. 每次提交操作将产生一个新的`commit id`
+我们已经了解到提交是Git版本管理的基本单位，通过提交文件可以方便的读取指定版本的文件信息。下图中每个圆点代表一个提交，那每个提交间的关系Git是怎么管理的？
 
-### 在哪里？
+![github-network](./assets/github-network.png)
 
-1. 存储在`.git/objects/`目录中
-2. 名称为`./前2位/后38位`
+为了能够方便的遍历Git提交，提交
 
-### 有什么？
+![提交关联](./assets/commits-and-parents.png)
 
-1. `tree`：树对象名称
-   - 一个`commit`对象中只有一个`tree`对象
-   - 能够找到该`commit`包含的所有文件快照
-2. `parent`：在哪个`commit`对象基础上创建的
-   - 形成`commit`的遍历关系
-   - 第一个提交`parent`为空
-   - 从多个分支合并时，有多个`parent`
-3. `author`：该`commit`的作者
-   - 该`commit`的创建人
-   - 多人协作时，`author`可能不是自己
-4. `committer`：该`commit`的提交人
-   - 谁提交了
-5. 提交注释
-
-看一个`commit`的具体案例
-
-```shell
-# 查看 Git 对象的类型
-$ git cat-file -t 1f414886a
-commit
-
-# 查看 Git 对象的内容
-$ git cat-file -p 1f414886a
-tree 124098142d34d43b4df63a4c3655f0112f7c0682 # 该 commit 中包含的目录树
-parent 156aa60400c19d00a4d8bcef1ad0ed5a846e9849	# 从该 commit 创建的，因此parent 为该 commit
-author lijie <lijie@boco.com.cn> 1544613332 +0800 # 作者
-committer lijie <lijie@boco.com.cn> 1544613332 +0800 # 提交人
-
-Add readme.md # 提交注释
-```
-
-
-
-## tree
-
-在`git`中数据文件的存储没有采用类似操作系统的树状结构，而是用`tree`对象代替
-
-### 是什么？
-
-1. `git`内置对象类型
-2. 模拟目录存储结构
-3. 表现为`SHA-1`哈希值（长度40）
-
-### 在哪里？
-
-1. 存储在`.git/objects/`目录中
-2. 名称为`./前2位/后38位`
-
-### 有什么？
-
-1. `tree`对象
-   - 子树（目录）
-2. `blob`对象
-   - 数据文件（各种类型）
-3. 每个对象一行描述（各属性用空格分隔）
-   - 对象类型
-   - 哈希文件名（ 仓库中存储的文件 ）
-   - 真实文件/目录名（ 对应的工作目录中的名称 ）
-
-```shell
-# 看看 commit 中 tree 配置项对应对象的类型
-$ git cat-file -t 124098142d34d43b4
-tree
-
-# tree 具体的内容
-$ git cat-file -p 124098142d34d43b4
-100644 blob 72943a16fb2c8f38f9dde202b7a70ccc19c52f34	aaa.txt
-100644 blob e6076a05b53658ebd812398523da7f38fc552aa1	readme.md
-100644 blob 5d308e1d060b0c387d452cf4747f89ecb9935851	test
-
-# 使用 git ls-tree 直接查看分支/HEAD/commit中 tree 的内容
-$ git ls-tree -r 1f414886a # -r 表示递归显示子树
-100644 blob 72943a16fb2c8f38f9dde202b7a70ccc19c52f34	aaa.txt
-100644 blob e6076a05b53658ebd812398523da7f38fc552aa1	readme.md
-100644 blob 5d308e1d060b0c387d452cf4747f89ecb9935851	test
-```
-
-
-
-## blob
-
-在`git`中多有的文件统一由`blob`对象表示
-
-### 是什么？
-
-1. `git`内置对象类型
-2. 文件的存储实体
-3. 表现为`SHA-1`哈希值（长度40）
-
-### 在哪里？
-
-1. 存储在`.git/objects/`目录中
-2. 名称为`./前2位/后38位`
-
-### 有什么？
-
-1. 数据文件内容
-2. 压缩存储
-
-```shell
-# 看看 blob 对象的类型
-$ git cat-file -t e6076a0
-blob
-
-# 看看 blob 对象的内容
-$ git cat-file -p e6076a0
-你好
-
-# 使用 git ls-files 列出 暂存区 或者 本地数据目录中的文件
-# 常用参数 -s --with-tree=
-$ git ls-files -s # 列出暂存区中文件
-100644 blob 72943a16fb2c8f38f9dde202b7a70ccc19c52f34	aaa.txt
-100644 blob e6076a05b53658ebd812398523da7f38fc552aa1	readme.md
-100644 blob 5d308e1d060b0c387d452cf4747f89ecb9935851	test
-
-$ git ls-files --with-tree=HEAD^ # 列出上一次提交的文件
-100644 blob 72943a16fb2c8f38f9dde202b7a70ccc19c52f34	aaa.txt
-100644 blob e6076a05b53658ebd812398523da7f38fc552aa1	readme.md
-```
-
-
-
-
-
-**提交对象**。保存一个“版本”的全部文件信息的**快照**，文件中保存如下信息：文件根Tree、`parent`提交对象、提交操作的作者、提交人、提交消息
-
-**Tree对象**。可以理解为目录树、在GIT中目录用`tree对象`存储
-
-**Blob对象**。
-
-![commits-and-parents](./assets/commits-and-parents.png)
+### 小结
 
