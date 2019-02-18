@@ -2,7 +2,7 @@ title: 2.Git-分支
 date: 2019-01-25
 tags: GIT
 categories: 配置管理
-layout: draft
+layout: post
 
 ------
 
