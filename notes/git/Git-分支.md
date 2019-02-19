@@ -125,7 +125,7 @@ Git的每次提交都是在提交链上添加一个新节点，新节点中保�
 
 下面介绍Git分支的常用操作，包括创建分支、切换分支、合并分支、删除分支。
 
-假设在一个Git仓库的`master`分支下进行了3次提交，`master`分支指向最后一次提交(`a7c4f`)，当前分支为`master`分支，且仓库中不存在其他分支。
+假设在一个Git仓库的`master`分支下进行了3次提交，`master`分支指向最后一次提交(`1d9eb`)，当前分支为`master`分支，且仓库中不存在其他分支。
 
 ![Git分支初始状态](./assets/branchs-ops-init.png)
 
@@ -161,7 +161,7 @@ $ git checkout -b [分支名称]
 
 **使用指令**
 
-在Git中切换分支非常的简单，使用`git checkout`指令。
+在Git中切换分支使用`git checkout`指令。
 
 ```bash
 # 切换分支指令
@@ -176,7 +176,7 @@ $ git checkout fea_login
 
 ![VSCode切换分支](./assets/branchs-ops-switch-vscode.png)
 
-切换分支后，当前分支`HEAD`指向`fea_login`，而且工作区的内容初始化为`fea_login`指向提交的内容
+切换分支后，当前分支`HEAD`指向`fea_login`，而且工作区的内容更换为`fea_login`指向提交的内容
 
 ![切换分支后](./assets/branchs-ops-switch.png)
 
@@ -197,16 +197,119 @@ $ git commit -m'添加login.html，增加用户登录功能'
 
 **VS Code**
 
+![在分支上提交](./assets/branchs-ops-edit-vscode.png)
 
+在`fea_login`分支上完成提交工作后，`fea_login`分支将指向新的提交。
 
+![在分支上提交](./assets/branchs-ops-edit.png)
 
+这时，如果将当前分支切换回`master`分支，则工作目录将恢复到`master`分支指向的提交`1d9eb`，也就是说在工作目录中将看不到新增加的文件`login.html`。
 
-在`fea_login`分支上完成提交工作后，`fea_login`分支将指向新的提交
+### 创建紧急修补Bug分支
 
+假设，此时`master`分支上的版本（发布版本）有Bug需要紧急修复，则需要创建一个分支`fix_213`。具体的分支创建和Bug修复过程就不再赘述。
 
+Bug修复完成并通过测试后，将代码提交到Git仓库中。此时，分支如下图所示
 
+![两个分支](./assets/branchs-ops-two.png)
 
+**`master`分支**。Git仓库的主干分支，该分支的版本与现场运行版本保持一致，处于**稳定状态**。
 
-**分支可以合并**。使用分支是为了方便的切换工作场景（修补Bug、重构代码、添加特性…），切换分支时Git自动将工作区的内容切换为分支提交的内容。在完成特定的工作后，需要将分支进行合并。
+**`fea_login`分支**。基于`master`分支创建的特性分支，用于开发新的功能。
 
-**分支可以删除**。分支是为了特定的工作场景创建的，当工作完成并合并后，就可以删除该分支，以保持仓库的
+**`fix_213`分支**。基于`master`分支创建的Bug修复分支，用于修复发布版本的紧急Bug。
+
+`fea_login`分支和`fix_213`分支可以交由两人并行工作，或者交由一人通过切换分支来切换工作场景。不管哪种方式，都不需要开发人员还原曾经对`master`分支的修改，通过创建分支可以轻松实现。
+
+### 合并分支
+
+创建分支的目的是为了方便的切换工作场景（修补Bug、重构代码、添加特性…）而不至于混淆代码，当完成了分支的特定工作后，就需要将分支合并到主分支，使得项目的版本持续向前演进。
+
+**快进合并**
+
+以合并`master`和`fix_213`分支为例，由于 `master` 分支所在的提交是`fix_213`分支所在提交的直接祖先，合并操作不会出现需要解决的冲突，因此Git只会简单的将指针向前推进（指针右移）—— 称为"快进(Fast-Forward)"。
+
+```bash
+### 合并master和fix_213分支
+# 先切换到合并进的分支master
+$ git checkout master
+# 合并fix_213分支到master分支
+$ git merge fix_213
+```
+
+`VS Code`没有提供合并分支的图形化工具，可以使用命令模式进行合并。
+
+![使用VSCode进行合并分支](./assets/branchs-ops-ffmerge-vscode.png)
+
+**注意**：合并操作时，先要切换到合并进的分支(本例为`master`)，再对要合并的分支执行合并操作。
+
+将`fix_213`分支合并进`master`分支后，分支如下图所示
+
+![使用VSCode进行合并分支](./assets/branchs-ops-ffmerge.png)
+
+**三方合并**
+
+以合并`master`和`fea_login`分支为例。和之前合并 `fix_213` 分支时不同，两个分支从某个历史提交分叉开来。由于`master` 分支所在提交并不是 `fea_login` 分支所在提交的直接祖先，此时Git 会使用两个分支所在提交（`80eb1` 和 `b83c0`）以及这两个分支的共同祖先（`1d9eb`），进行三方合并。
+
+![三方合并](./assets/branchs-ops-threemerge.png)
+
+三方合并时，Git将合并结果保存为一个新提交，称作**合并提交**，它的特别之处在于他有不止一个父提交。合并后的分支`master`指向这个**合并提交**。
+
+![三方合并后](./assets/branchs-ops-threemerge-ok.png)
+
+**合并冲突**
+
+在进行**三方合并**时，可能存在这样的情况：两个分支对同一个文件的同一个部分进行了不同的修改，此时Git无法自动完成合并操作，需要认为参与解决冲突(修改冲突文件)。待冲突解决后，手动将修改后的最终文件提交到Git仓库，最终完成合并操作。
+
+下面是一个合并冲突的示例。为了模拟冲突，我们在`master`分支和`fea_login`分支上又分别对`readme.md`文件进行了修改，都修改了第二行内容。然后分别将修改的内容提交到Git仓库。
+
+![VSCode合并冲突处理](./assets/branchs-ops-merge-conflict-vscode.png)
+
+### 删除分支
+
+分支是为了特定的工作场景创建的，在创建的分支上完成编辑工作并**合并到主分支**后，该分支就完成了历史使命，最好删除该分支，以保持仓库分支的简洁。
+
+**使用指令**
+
+```bash
+# 删除指定分支
+$ git branch -d [分支名称]
+# 如果创建的分支未执行合并操作，则Git会提示不能删除，如果需要删除则
+$ git branch -D [分支名称]
+```
+
+- 当前分支不能删除
+- 未合并的分支需要使用`-D`强行删除
+
+**VS Code**
+
+![VSCode删除分支](./assets/branchs-ops-delete-vscode.png)
+
+### 查看分支和提交历史
+
+有时我们需要查看本地Git仓库中的提交历史和分支情况，下面介绍常用的指令和方法
+
+**使用指令**
+
+```bash
+### 查看Git仓库中的分支信息
+# 只显示分支名称
+$ git branch
+# 显示分支的提交名称和注释
+$ git branch -v
+
+### 查看Git仓库中的提交历史
+# 显示完整提交信息
+$ git log
+# 显示提交注释和名称
+$ git log --oneline
+# 图形化显示提交历史和关系
+$ git log --graph
+```
+
+**VSCode**
+
+建议安装`git history`插件，使用该插件可以在`VS Code`中以图形化方式查看分支和历史提交。
+
+![VSCode中的git history](./assets/branchs-ops-gitlog-vscode.png)
+
