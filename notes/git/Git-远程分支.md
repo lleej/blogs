@@ -128,22 +128,32 @@ Host git.dev.tencent.com
 
 **User**。登录远程仓库的用户名
 
-## 远程仓库管理
+## 管理远程仓库
 
-> 由于VS Code中没有集成对远程仓库的管理功能，以下操作需要在命令行中进行
+> VS Code中只集成了部分远程仓库的管理功能（无添加和删除）
+>
+> 本章节重点介绍远程仓库的管理，涉及到远程分支的部分在后面章节说明
 
-管理远程仓库包括添加远程仓库、移除无效的远程仓库、管理不同的远程分支并定义它们是否被跟踪等等。
+为了能够操作远程仓库，需要在本机 Git 中添加一个具名的指向远程仓库URL的引用，称为**远程仓库**。Git 中远程仓库的默认名称是`origin`（类似默认分支名称为`master`），在本地 Git 中远程仓库不能重名，但可以设置指向同一个远程仓库URL的多个远程仓库。
+
+管理远程仓库包括：添加远程仓库、移除无效的远程仓库、管理不同的远程分支并定义它们是否被跟踪等等。
 
 ### 添加远程仓库
 
+只是添加一个指向远程仓库URL的链接，远程仓库的创建需要在远程 Git 端操作。
+
 **克隆仓库**
 
-如果我们使用`git clone`从远程克隆仓库到本地，Git 会自动添加远程仓库，并且命名为`origin`。
+如果我们使用`git clone`从远程克隆仓库到本地，Git 会自动添加远程仓库，命名为`origin`。
 
 ```bash
 # 通过克隆方式添加远程仓库
-$ git clone git@github.com/xxx/[仓库名]
+$ git clone [远程仓库名称]
+# 示例
+$ git clone git@github.com:lleej/test.git
 ```
+
+注意：使用`ssh`协议时远程仓库的命名格式，`git@[版本库域名]:[用户名]/[版本库名]`
 
 **手动添加**
 
@@ -151,12 +161,175 @@ $ git clone git@github.com/xxx/[仓库名]
 
 ```bash
 # 手动添加远程仓库
-
+$ git remote add [远程仓库名称] [远程仓库URL]
+# 示例
+$ git remote add origin git@github.com:lleej/test.git
 ```
 
+添加远程仓库后，就可以在本地对远程仓库进行推送和抓取版本信息的操作。
 
+### 删除远程仓库
+
+只是删除指向远程仓库URL的链接，远程仓库的删除需要在 Git 服务端操作。
+
+```bash
+# 删除远程仓库
+$ git remote rm [远程仓库名称]
+# 示例
+$ git remote rm origin
+```
+
+删除远程仓库并不会影响本地的已有版本也不会影响远程仓库的内容。
+
+### 重命名远程仓库
+
+只是对本地访问远程仓库的名称进行修改，并不会影响本地已有版本。
+
+```bash
+# 重命名远程仓库
+$ git remote rename [OLD] [NEW]
+# 示例
+$ git remote rename origin ori
+```
+
+重命名后，需要使用新的远程仓库名称进行操作。
+
+### 查看远程仓库
+
+查看在本地 Git 仓库中连接了哪些远程仓库，以及这些仓库的 URL 地址和分支的跟踪情况。
+
+**简要信息**
+
+```bash
+# 查看远程仓库名称
+$ git remote
+# 查看远程仓库名称和URL
+$ git remote -v
+```
+
+**详细信息**
+
+```bash
+# 查看远程仓库详细信息
+$ git remote show [远程仓库名称]
+# 输出内容如下
+* remote origin
+  Fetch URL: git@github.com:lleej/test.git
+  Push  URL: git@github.com:lleej/test.git
+  HEAD branch: master
+  Remote branch:
+    from-remote new (next fetch will store in remotes/origin)
+    master tracked
+  Local branch configured for 'git pull':
+    master merges with remote master
+  Local ref configured for 'git push':
+    master pushes to master (up to date)
+```
+
+**Fetch URL**。从远程仓库拉取版本信息的URL地址
+
+**Push URL**。向远程仓库推送版本信息的URL地址
+
+**HEAD branch**。本地当前工作分支，本例为`master`
+
+**Remote branch**。远程仓库中的所有分支。标注为`tracked`的分支表示已经拉取到本地，标注为`new`的分支是没有拉取到本地的分支。
+
+**Local branch configured for "git pull"**。为`git pull`操作配置的本地分支。如果存在则表示当执行拉取`git pull`操作时，能够从远程仓库拉取这些分支并与本地分支进行合并。不在此列的分支不能从远端拉取到本地，需要使用`git fetch`操作。
+
+**Local branch configured for "git push"**。为`git push`操作配置的本地分支。如果存在则表示当执行推送`git push`操作时，能够将这些分支推动到远程仓库对应的分支中。如果推送的分支不在此列，则需要手动指定推动的分支名称。
+
+**注：以上三部分的操作只能通过命令行方式或者使用 Git 客户端工具实现，`VS Code`中并没有提供相应的功能。**
+
+### 从远程仓库拉取
+
+在与他人协作时，远程仓库中的版本会被多人更新，导致个人本地的版本滞后于远程仓库（有时也会超前）。当我们需要使用最新版本时，就需要从远程仓库拉取到本地。
+
+**拉取 Fetch**
+
+使用`git fetch`指令，可以从远程仓库拉取**所有分支**的最新版本到本地 Git 仓库。拉取的分支并不会与本地分支进行合并，因此不会影响当前的工作。
+
+```bash
+# 拉取远程仓库 所有分支
+$ git fetch [远程仓库名称]
+# 示例
+$ git fetch origin
+
+# 拉取远程仓库 指定分支
+$ git fetch [远程仓库名称] [远程分支名称]
+# 示例
+$ git fetch origin master
+```
+
+**抓取 Pull**
+
+当本地的分支设置为跟踪远程仓库的分支（见 查看远程仓库章节）使用`git pull`指令，可以从远程仓库拉取分支到本地 Git 仓库，并与本地仓库中建立跟踪关系的分支进行合并。
+
+注意：只能抓取设置为跟踪远程仓库的分支。否则只能使用`git fetch`进行拉取操作，并手动进行分支的合并。
+
+```bash
+# 抓取远程仓库
+# 当前工作分支设置为跟踪远程仓库的分支
+$ git pull [远程仓库名称]
+# 示例
+$ git pull origin
+
+# 建立远程仓库分支与本地分支的跟踪关系
+$ git branch --set-upstream-to=<remote>/<branch> <branch>
+```
+
+在`VS Code`中集成了远程仓库的抓取功能，使用的就是`git pull`指令，会自动与本地分支进行合并。
+
+### 向远程仓库推送
+
+在多人协作的场景中，当工作完成后需要将其推送到远程仓库，便于他人拉取到本地使用。
+
+```bash
+# 推送到远程仓库 
+# 针对 为git push操作配置的分支 不用设置具体分支名称
+$ git push [远程仓库名称]
+# 示例
+$ git push origin
+
+# 指定本地分支
+$ git push [远程仓库名称] [分支名称]
+# 示例
+$ git push origin master
+```
+
+### 小结
+
+**远程仓库**。指向远端 Git 仓库的一个引用，通过这个引用可以拉取或推送版本信息
+
+**远程仓库名称唯一**。为远程仓库设置的名称必须在本地仓库中唯一。
+
+**任意推动本地分支**。本地仓库创建的分支均可以使用`git push`指令推动到远程仓库中。如果存在为`git push`设置的分支清单，则不用指定具体分支名称，将一次将清单中的分支全部推送到远端；否则，需要手动指定推动的分支，并且进行过推动操作的分支将自动添加到清单中。
+
+**任意拉取远程分支**。使用`git fetch`操作可以一次拉取远程仓库中所有分支的更新，也可以拉取指定的远程分支，但拉取到本地后不会与本地分支自动进行合并操作。
+
+**抓取跟踪分支**。使用`git pull`操作可以将远程仓库的分支拉取到本地并自动与本地分支进行合并，不过不是所有的分支都能奏效，必须是为`git pull`设置的分支才可以。
 
 ## 远程分支
 
+
+
 ## 远程分支操作
+
+
+
+```bash
+Note: checking out 'origin/master'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by performing another checkout.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -b with the checkout command again. Example:
+
+  git checkout -b <new-branch-name>
+
+HEAD is now at 25fb6af 合并fea_login分支，解决了readme.md文件的冲突
+```
+
+
 
