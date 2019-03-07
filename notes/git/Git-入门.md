@@ -72,7 +72,7 @@ Linux 内核开源项目有着为数众多的参与者。 绝大多数的 Linux 
 
 作为一款分布式版本控制系统，GIT的工作区域概念与SVN的不同，如下图所示
 
-![GIT 工作区](./assets/291c4dc9-f58f-351e-a39f-fb070f211b32.png)
+![GIT 工作区](./assets/git-workarea-relation.png)
 
 GIT使用了三个工作区域，分别是：工作区（Working）、暂存区（Index）、版本库（Resository）
 
