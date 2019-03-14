@@ -24,11 +24,11 @@ layout: post
 
 上图三条颜色的线代表三个分支，线上的圆点代表提交(版本)
 
-- `master`默认分支。该分支有4次提交
+`master`默认分支。该分支有4次提交
 
-- `beijing`分支。从`master`分支创建，该分支有3次提交
+`beijing`分支。从`master`分支创建，该分支有3次提交
 
-- `shanghai`分支。从`master`分支创建，该分支有3次提交
+`shanghai`分支。从`master`分支创建，该分支有3次提交
 
 从上图可以看出
 
