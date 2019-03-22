@@ -378,7 +378,7 @@ Github 提供了项目看板功能，通过`Project`对任务进行管理和跟�
 
 **新建项目**
 
-1. 点击"Create a project"按钮创建项目
+1. 创建项目
 2. 输入项目名称、描述
 3. 选择"Automated kanban"模板
 4. 创建一个新的项目
@@ -401,6 +401,8 @@ Github 提供了项目看板功能，通过`Project`对任务进行管理和跟�
 
 ### Release
 
+用于记录发布历史，可以手动创建`Release`，也可以使用第三方`App`，如：`Release Drafter`自动创建和跟踪版本发布变化。
+
 ![Release功能](./assets/github-release.png)
 
 **创建Release**
@@ -413,16 +415,47 @@ Github 提供了项目看板功能，通过`Project`对任务进行管理和跟�
 
 ![创建Release](./assets/github-release-new.png)
 
-1. 基于主干分支`master`创建`release`，该`release`可以是一个`pre-release`预发布的`beta`版本
-2. 在这个新建的`release`中，会将所有的代码压缩为`.zip`文件，可以直接下载该文件
-3. 发布是一个过程，从建立`release`到正式发布之间，需要修复Bug、增加特性以及各种各样的问题处理；这就需要通过Github的`Project Board`进行跟踪和管理
-4. 在发布版本过程中，对分支的修改合并到`release`中，然后通过`Pull Request`合并到`master`中。为什么不是先合并到`master`中，再`cherry pick`到`release`中内？这个`Pull Request`会一直保持`opend`状态，直到正式发布才进行合并。
-5. Github的`Release Drafter App`，可以记录变更情况，并填写在`Pull Request`的描述中。
-6. 最终发布版本时，在`release`中修改`Draft`的版本号为正式版本号，并最终发布它。
+**查看Release**
+
+手动创建的`Release`，在创建时输入的信息会显示在列表中，包括：版本号、版本标题、版本描述；创建`Release`时，目标分支`master`的文件的打包文件。
+
+当然，对于使用持续集成CI/CD的项目，打包源代码意义不大。
+
+![查看Release](./assets/github-release-info.png)
+
+### Release Drafter
+
+Release Drafter 是 Github 的第三方App。用于自动收集变更情况（提交中的提交消息），不需要手动创建`Release`，在仓库中添加配置信息后`.github/release-drafter.yml`，每次提交都会自动记录在`Draft`中。
+
+![Drafter](./assets/github-release-drafter.png)
+
+当发布版本的开发、测试以及相关工作完成后，可以将`Draft`版本转换为`Release`版本。
+
+1. 点击"Edit"，编辑`Draft`版本信息
+2. 输入版本号、版本标题
+3. 点击"Publish Release"发布版本
+
+![发布Draft](./assets/github-release-publishdraft.png)
+
+发布版本信息如下所示
+
+![发布信息](./assets/github-release-info1.png)
+
+### Release分支
+
+在开发过程中，所有的`Pull Request`，都将开发分支合并到主干分支`master`上。当到达版本发布节点（所有功能和Bug修复都已经完成，具备发布条件），基于主干分支`master`创建发布分支`release`。对于目前的绿通项目，采用持续迭代的版本模式，因此只需要创建一个`release`分支即可。
+
+最终我们是把`release`分支的代码部署到正式运行环境中。
 
 ## 修复流程
 
+当已发布版本在实际运行中出现Bug，需要进行紧急修复（HotFix），就需要启动修复流程。
 
+在进行版本修复时，主干分支可能已经遥遥领先于当前版本了（进入下一个版本的开发中）。为了保持开发的一致性，我们需要从主干分支创建修复分支（Fix分支）。
+
+在修复完Bug后，将修复分支推动到服务端，并开启`Pull Request`将修复分支合并到主干分支。当Bug修复完成后（通过测试验证），将本次修复的提交合并到`release`分支中，一般采用`cherry-pick`的方式。
+
+更新`release`分支后，需要创建新的版本`release`并更新版本号，版本号更新采用`语义化版本`的规范
 
 ## 常见问题
 
