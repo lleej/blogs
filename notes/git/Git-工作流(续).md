@@ -105,7 +105,7 @@ layout: post
 | 分支类型 | 分支命名                                                     | 限制      |
 | -------- | ------------------------------------------------------------ | --------- |
 | 功能开发 | fea/xxx 以`fea/`开头，清晰描述功能。如：`fea/userLogin`      | 长度 < 20 |
-| 代码重构 | fef/xxx 以`ref/`开头，清晰描述重构内容。如：`ref/menuRouter` | 长度 < 20 |
+| 代码重构 | ref/xxx 以`ref/`开头，清晰描述重构内容。如：`ref/menuRouter` | 长度 < 20 |
 | Bug修复  | fix/xxx 以`fix/`开头，Bug编号或描述。如：`fix/123`或`fix/addDuplicateUser` |           |
 | 主干分支 | `master`                                                     | 不可推送  |
 | 发布分支 | `release-版本号`，如：`release-v0.9.3`                       | 不可推送  |
@@ -349,7 +349,7 @@ $ git push origin [工作分支]
 2. 如果有一个建议被采纳，可以使用"Commit suggestion"，直接提交该建议
 3. 当然开发人员也可以忽略审查人员提出的任何建议
 
-![采纳建议](/Users/lijie/Work/blogs/notes/git/assets/github-suggestion-commit.png)
+![采纳建议](./assets/github-suggestion-commit.png)
 
 ### 合并分支
 
