@@ -1,5 +1,5 @@
-title: 3.Git-深入
-date: 2019-02-13
+title: 3.Git-剖析
+date: 2019-03-26
 tags: GIT
 categories: 配置管理
 layout: draft

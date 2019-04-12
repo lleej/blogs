@@ -381,3 +381,13 @@ $ git checkout --[文件名]
 $ git commit -m'提交消息'
 ```
 
+## 学习资源
+
+先介绍几个学习 Git 的资源
+
+[Learn Git Branching](https://learngitbranching.js.org/) 一个开源的Git练习网站
+
+[Github实验室](https://lab.github.com/) Github的练习网站
+
+[Git 官网](https://git-scm.com/book/zh/v2) 官方的帮助文档，非常全面
+
