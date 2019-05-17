@@ -21,34 +21,54 @@
 __author__ = 'jacklee'
 ```
 2. 模板头部说明
-    - 注释1: 能够让.py文件可以直接在Unit/Linux/Mac上运行
+    - 注释1: 能够让.py文件可以直接在Unix/Linux/Mac上运行
     - 注释2: 表示.py文件本身使用标准UTF-8编码
-    - 字符串: 模板的文档注释，任何模块代码的第一个字符串为视为模块的文档注释
+    - 字符串: 模板的文档注释，任何模块代码的第一个字符串视为模块的文档注释
     - 变量: `__author__`把作者写进去
 
 #### 模块命名
-1. 不能包含`.`. 如：`module.test`是错误的
-2. 不能以数字开头. 如：`05module`是错误的
-    
+1. 不能包含`.` 如：`module.test`是错误的
+2. 不能以数字开头。如：`05module`是错误的
+  
 ## 如何使用模块
-要使用模块，必须先导入模块
+要使用模块，必须先导入模块。
+
+`import`语句将导入的模块/函数/变量的代码复制到当前程序文件中。
+
 #### 导入模块
 1. 使用`import`语句
     - 语法: `import 模块名`
     - 一次可以导入多个模块. 如: `import module1[, module2[,...moduleN]`
     - 包名以`.`分隔, 如：`import module.test`，包名module，模块名test
     - 不可以导入函数、变量、类
-2. 使用`from...import`语句
+
+```python
+# modulename: pizza.py
+
+def make_pizza(size, *args):
+  """概述要制作的披萨"""
+  print("\nMaking a ", size, "-inch pizza with the following toppings:")
+  for topping in args:
+    print("- ", topping)
+
+# filename: making_pizza.py
+import pizza
+pizza.make_pizza(16, 'a', 'b', 'c')
+```
+
+
+
+1. 使用`from...import`语句
     - 导入函数[变量]: `from collections import iterable`
     - 导入模块: `from mycompay import utils`
     - 导入相对路径: `from . import moduleA`, 导入模块当前目录下的moduleA模块
-3. 导入模块寻址
+2. 导入模块寻址
     - Python解释器默认使用`sys.path`中的目录查找导入的模块
 
-4. 符号表(导入后的可见名称)
+3. 符号表(导入后的可见名称)
     - 使用`import`导入的模块，模块名称可见
     - 使用`from...import`导入的函数[变量]，只有函数[变量]可见
-    - 使用`from...import *`导入所有函数[变量](除`_`开头的名字)可见
+    - 使用`from...import *`导入所有函数[变量] (除`_`开头的名字)可见
     - 使用内置函数`dir(模块名)`可以查看当前模块所有变量[函数]
 
 #### 使用模块
@@ -61,10 +81,9 @@ __author__ = 'jacklee'
 2. 模块内私有的变量[函数]加入`_`前缀(Python不限制). 如：`_print()`就是私有函数
 
 #### 其他
-1. __init__.py文件. 包的初始化文件
-2. __all__变量. 管理所有通过`from ... import *`语句导入的模块名，如: __all__ = ['a', 'b', 'c']
-3. __main__变量. 主模块的名称. 可以通过判断模块的`__main__`变量是否为主模块
-4. 
+1. `__init__.py`文件. 包的初始化文件
+2. `__all__`变量. 管理所有通过`from ... import *`语句导入的模块名，如: `__all__` = ['a', 'b', 'c']
+3. `__main__`变量. 主模块的名称. 可以通过判断模块的`__main__`变量是否为主模块
 
 ## 引入第三方模块
 1. 使用pip工具. Linux/Mac下已经安装了.
