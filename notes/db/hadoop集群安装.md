@@ -18,11 +18,11 @@ layout: post
 
    > 三个结点：一个主节点master，两个从节点，内存1G以上，磁盘20G以上
 
-   | IP地址          | 主机名 | 功能                                           |
-   | --------------- | ------ | ---------------------------------------------- |
-   | 192.168.139.100 | master | NameNode、Secondary NameNode、Resource Manager |
-   | 192.168.139.101 | slave1 | Datanode、NodeManager                          |
-   | 192.168.139.102 | slave2 | Datanode、NodeManager                          |
+   | IP地址        | 主机名 | 功能                                           |
+   | ------------- | ------ | ---------------------------------------------- |
+   | 192.168.1.100 | master | NameNode、Secondary NameNode、Resource Manager |
+   | 192.168.1.101 | slave1 | Datanode、NodeManager                          |
+   | 192.168.1.102 | slave2 | Datanode、NodeManager                          |
 
 2. 安装项目
 
@@ -33,90 +33,115 @@ layout: post
 
 3. 操作系统版本
 
-   > 安装的操作系统是CentOS 7
+   > 安装的操作系统是CentOS 7以上
 
    ```
    [root@master ~]# cat /etc/redhat-release
    CentOS Linux release 7.6.1810 (Core)
    ```
 
-4. IP地址和DNS
+4. 修改HostName
 
-   ```
-   master服务器:[root@master ~]# cat /etc/sysconfig/network-scripts/ifcfg-ens33
-   BOOTPROTO="static"
-   IPADDR=192.168.139.100
-   NETMASK=255.255.255.0
-   GATEWAY=192.168.139.2
-   DNS1=8.8.8.8
-   DNS2=8.8.8.4
+   ```bash
+   # master
+   # 方法1：通过命令修改，不需要重启
+   [root@master hadoop]# hostnamectl set-hostname master
+   # 方法2：修改配置文件，需要重启
+   [root@master hadoop]# vi /etc/hostname
+   master
    
-   slave1服务器:[root@slave1 ~]# cat /etc/sysconfig/network-scripts/ifcfg-ens33
-   BOOTPROTO="static"
-   IPADDR=192.168.139.101
-   NETMASK=255.255.255.0
-   GATEWAY=192.168.139.2
-   DNS1=8.8.8.8
-   DNS2=8.8.8.4
+   # slave1
+   # 方法1：通过命令修改，不需要重启
+   [root@slave1 hadoop]# hostnamectl set-hostname slave1
+   # 方法2：修改配置文件，需要重启
+   [root@slave1 hadoop]# vi /etc/hostname
+   slave1
    
-   slave2服务器:[root@slave2 ~]# cat /etc/sysconfig/network-scripts/ifcfg-ens33
+   # slave2
+   # 方法1：通过命令修改，不需要重启
+   [root@slave2 hadoop]# hostnamectl set-hostname slave2
+   # 方法2：修改配置文件，需要重启
+   [root@slave2 hadoop]# vi /etc/hostname
+   slave2
+   ```
+   
+5. IP地址和DNS
+
+   ```bash
+   # master
+   [root@master hadoop]# cat /etc/sysconfig/network-scripts/ifcfg-ens33
    BOOTPROTO="static"
-   IPADDR=192.168.139.102
+   IPADDR=192.168.1.100
    NETMASK=255.255.255.0
-   GATEWAY=192.168.139.2
+   GATEWAY=192.168.1.1
    DNS1=8.8.8.8
-   DNS2=8.8.8.4
+   
+   # slave1
+   [root@slave1 hadoop]# cat /etc/sysconfig/network-scripts/ifcfg-ens33
+   BOOTPROTO="static"
+   IPADDR=192.168.1.101
+   NETMASK=255.255.255.0
+   GATEWAY=192.168.1.1
+   DNS1=8.8.8.8
+   
+   # slave2
+   [root@slave2 hadoop]# cat /etc/sysconfig/network-scripts/ifcfg-ens33
+   BOOTPROTO="static"
+   IPADDR=192.168.1.102
+   NETMASK=255.255.255.0
+   GATEWAY=192.168.1.1
+   DNS1=8.8.8.8
    ```
 
-5. 修改/etc/hosts，三台服务器配置一样，以master服务器为例
+6. 修改/etc/hosts，三台服务器配置一样，以master服务器为例
 
-   ```
-   [root@master ~]# cat /etc/hosts
+   ```bash
+   [root@master hadoop]# cat /etc/hosts
    127.0.0.1        localhost
-   192.168.139.100  master
-   192.168.139.101  slave1
-   192.168.139.102  slave2
+   192.168.1.100  master
+   192.168.1.101  slave1
+   192.168.1.102  slave2
    ```
 
-6. 关闭防火墙和selinux，三台服务器配置一样，以master服务器为例
+7. 关闭防火墙和selinux，三台服务器配置一样，以master服务器为例
 
-   ```
-   查看防火墙状态
-   [root@master ~]# systemctl status firewalld
+   ```bash
+   # 查看防火墙状态
+   [root@master hadoop]# systemctl status firewalld
    Active: active (running) 开启状态
-   关闭防火墙
-   [root@master ~]# systemctl stop firewalld
-   禁用防火墙
-   [root@master ~]# systemctl disable firewalld
+   # 关闭防火墙
+   [root@master hadoop]# systemctl stop firewalld
+   # 禁用防火墙
+   [root@master hadoop]# systemctl disable firewalld
    
-   查看selinux状态
-   [root@master ~]# getenforce
-   永久关闭selinux
-   [root@master ~]# vi /etc/selinux/config
+   # 查看selinux状态
+   [root@master hadoop]# getenforce
+   # 永久关闭selinux
+   [root@master hadoop]# vi /etc/selinux/config
    SELINUX=disabled   # change to disabled
-   重启系统
-   [root@master ~]# reboot
+   # 重启系统
+   [root@master hadoop]# reboot
    ```
 
-7. 时间同步，三台服务器配置一样，以master服务器为例
+8. 时间同步，三台服务器配置一样，以master服务器为例
 
-   ```
-   查看是否安装ntp
+   ```bash
+   # 查看是否安装ntp
    [root@master ~]# rpm -qa |grep ntp
-   如果没有安装，用yum安装
+   # 如果没有安装，用yum安装
    [root@master ~]# yum install ntp
-   指定时间同步
+   # 指定时间同步
    ntpdate time.windows.com
    ```
 
-8. 创建用户并配置sudo权限，三台服务器配置一样，以master服务器为例
+9. 创建用户并配置sudo权限，三台服务器配置一样，以master服务器为例
 
-   ```
-   创建组
+   ```bash
+   # 创建组
    [root@master ~]# groupadd hadoop
    创建用户并指定用户所属组
    [root@master ~]# useradd hadoop -g hadoop
-   修改用户密码
+   # 修改用户密码
    passwd hadoop
    
    [root@master ~]# visudo
@@ -124,65 +149,65 @@ layout: post
    hadoop    ALL=(ALL)       ALL
    ```
 
-9. 安装jdk，配置环境变量，三台服务器配置一样，以master服务器为例
-
-   ```
-   将jdk-8u77-linux-x64.rpm拷贝到/home/hadoop/中
-   [root@master hadoop]# rpm -ivh /home/hadoop/jdk-8u77-linux-x64.rpm
-   切换到hadoop用户
-   [hadoop@master ~]$ vi ~/.bash_profile
-   
-   export JAVA_HOME=/usr/java/jdk1.8.0_77
-   export PATH=$PATH:$JAVA_HOME/bin
-   export CLASSPATH=.:$JAVA_HOME/jre/lib:$JAVA_HOME/lib:$JAVA_HOME/lib/tools.jar
-   
-   source ~/.bash_profile
-   验证jdk安装成功
-   [hadoop@master ~]$ java -version
-   ```
-
 10. 配置ssh无密码登录
 
-    ```
-    创建密钥对，输入ssh-keygen -t rsa，一路回车
-    [hadoop@master ~]$ ssh-keygen -t rsa
-    [hadoop@slave1 ~]$ ssh-keygen -t rsa
-    [hadoop@slave2 ~]$ ssh-keygen -t rsa
-    秘钥生成后在~/.ssh/目录下，有两个文件id_rsa(私钥)和id_rsa.pub（公钥）
-    
-    将master服务器的公钥复制到authorized_keys
-    [hadoop@master ~]$ cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
-    
-    合并公钥,将三台服务器的id_rsa.pub合并到master服务器的authorized_keys中
-    [hadoop@master ~]$ cat  ~/.ssh/id_rsa.pub 
-    ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDRQo7+LxndxDYyBGJZGD+0jC7LBFfGDlxWCh0aK4OvNVrs0Sf6+B/Xq3us3SJpX6YdeEgyCzfInw8L2pe1cu+XZpYuVoVevs/5bT9G3Wqtb8Ixk7nOP8EVDY5LNfDlhPp2iehxCVodpUVN09KyGPgCE8ffN4LRgVJ7SUZibtBmHn/Vdog09yZqjlYx845ZP8M8ifSMjcAQ0voSvRvWFTMvqqx5vpqDHkZhM5CA/+VOKgeNyUphV79o6SDnIHCxnLqG+m8v9U6sMRx2N4d+c59Pw5b1g112gKtF/Y86+EbQOMda8fYJMgkTnIJnKhPPOcEun/CdtinNYW1CP4pQsgCb hadoop@master
-    
-    [hadoop@slave1 ~]$ cat  ~/.ssh/id_rsa.pub
-    ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCdc3xdmHR4qY5lf0EyhD6cHRSOCOkp0H3heCeLso11hkSMVxowRZg+YCoRwTqfEWD+VkVGyws9EkRjLXXKJ8ND0l+1urlVzpM3tXMZeRfqF5YBHGlIQeAJ4lk1MnR9jev1TbITcKQLVA5GzAZx5MVQxE418UYnLYG2pLS1xIzMyFgr0CwpfpwA7owriclTIQOCa4nieUxYJDLdxmBsumBgPRp+195MCr1zrzwtb3UMEP+DLTHAw3+RBB15QoF3HEVVVhWSAN9ZjYjnit20dPwFnM2amGqpRS4p5wLxwkeyEsrdXkNsrtW+XbhtuxYo0YeusEp4spFhOTmv7lPhdfkv hadoop@slave1
-    
-    [hadoop@slave2 ~]$ cat  ~/.ssh/id_rsa.pub
-    ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtoqqsF2s8FfffiY7sZ545anJ69kf914nENQjwJd2GkgZSUujX4DJnXDSthyLUGr22cN3iaUmATQPm6qzpus/rag+QKms8fHMkaCLG6qeS9CCJZunJ2uWdTAd25H1d9RyTReTQ9tPqHZ4dFXlXeY4QYxiKHVCkOkXWrWLqCcKilDLkU7Z5HiqfPW23pt4WDmXerCIDZbM55152pcK3UF9AwFTBFA0ofQaq7IhrVHSpEsTHYQNWQxgEGYqyUT+ep3bGtvfu6a0621DIUScGlRsptrIFTFZPtO5Enih62VY/aKrA/YhHq1slTsh/tDSs29r6ZVtPNyNF0Ruu0kmPRveR hadoop@slave2
-    
-    master服务器中authorized_keys的内容如下
-    [hadoop@master ~]$ cat ~/.ssh/authorized_keys 
-    ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCakZ3tpFGp1rgwpRCtdWnXH8mdaBdESwBgrMRftGi3Dj9Lh1icOnLozXmuHaZnm4DVlqkgtlZtq+KDVu2picJ1vPtM9mpCCFAwrYiLsxB+f6bETiWUjZhYJqaTCbxdQIOyHvgeFMqe/nQfSC2c+RXyd/FD6IqV4Im02khEp820pfqVhChgXibk6czORvhC08ChfafCvH1YXaKCKp7lHKzA3iDUdaYTWNK8PdzTx8E6eEdH2w7yOXyVpnsfQS0oercsn5euiEdmXM3XkAnMPD1toWw5yyIprvwO7q9OUXFdMLXzeJILQ/TfeZA/9q4onDnOyqBGgpRfJVGpE1JT9Er/ hadoop@master
-    
-    ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCdc3xdmHR4qY5lf0EyhD6cHRSOCOkp0H3heCeLso11hkSMVxowRZg+YCoRwTqfEWD+VkVGyws9EkRjLXXKJ8ND0l+1urlVzpM3tXMZeRfqF5YBHGlIQeAJ4lk1MnR9jev1TbITcKQLVA5GzAZx5MVQxE418UYnLYG2pLS1xIzMyFgr0CwpfpwA7owriclTIQOCa4nieUxYJDLdxmBsumBgPRp+195MCr1zrzwtb3UMEP+DLTHAw3+RBB15QoF3HEVVVhWSAN9ZjYjnit20dPwFnM2amGqpRS4p5wLxwkeyEsrdXkNsrtW+XbhtuxYo0YeusEp4spFhOTmv7lPhdfkv hadoop@slave1
-    
-    ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtoqqsF2s8FfffiY7sZ545anJ69kf914nENQjwJd2GkgZSUujX4DJnXDSthyLUGr22cN3iaUmATQPm6qzpus/rag+QKms8fHMkaCLG6qeS9CCJZunJ2uWdTAd25H1d9RyTReTQ9tPqHZ4dFXlXeY4QYxiKHVCkOkXWrWLqCcKilDLkU7Z5HiqfPW23pt4WDmXerCIDZbM55152pcK3UF9AwFTBFA0ofQaq7IhrVHSpEsTHYQNWQxgEGYqyUT+ep3bGtvfu6a0621DIUScGlRsptrIFTFZPtO5Enih62VY/aKrA/YhHq1slTsh/tDSs29r6ZVtPNyNF0Ruu0kmPRveR hadoop@slave2
-    
-    将master中的authoized_keys远程到slave1和slave2中
-    [hadoop@master ~]$ scp ~/.ssh/authorized_keys slave1:~/.ssh/
-    [hadoop@master ~]$ scp ~/.ssh/authorized_keys slave2:~/.ssh/
-    
-    验证是否免密登录（第一次登录会有提示）,三台服务器都验证，如下以master为例
-    [hadoop@master ~]$ ssh localhost
-    [hadoop@master ~]$ ssh master
-    [hadoop@master ~]$ ssh slave1
-    [hadoop@master ~]$ ssh slave2
-    ```
+  ```bash
+  # 创建密钥对，输入ssh-keygen -t rsa，一路回车
+  [hadoop@master ~]$ ssh-keygen -t rsa
+  [hadoop@slave1 ~]$ ssh-keygen -t rsa
+  [hadoop@slave2 ~]$ ssh-keygen -t rsa
+  # 秘钥生成后在~/.ssh/目录下，有两个文件id_rsa(私钥)和id_rsa.pub（公钥）
+  
+  # 将master服务器的公钥复制到authorized_keys
+  [hadoop@master ~]$ cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
+  
+  # 合并公钥,将三台服务器的id_rsa.pub合并到master服务器的authorized_keys中
+  [hadoop@master ~]$ cat  ~/.ssh/id_rsa.pub 
+  ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDRQo7+LxndxDYyBGJZGD+0jC7LBFfGDlxWCh0aK4OvNVrs0Sf6+B/Xq3us3SJpX6YdeEgyCzfInw8L2pe1cu+XZpYuVoVevs/5bT9G3Wqtb8Ixk7nOP8EVDY5LNfDlhPp2iehxCVodpUVN09KyGPgCE8ffN4LRgVJ7SUZibtBmHn/Vdog09yZqjlYx845ZP8M8ifSMjcAQ0voSvRvWFTMvqqx5vpqDHkZhM5CA/+VOKgeNyUphV79o6SDnIHCxnLqG+m8v9U6sMRx2N4d+c59Pw5b1g112gKtF/Y86+EbQOMda8fYJMgkTnIJnKhPPOcEun/CdtinNYW1CP4pQsgCb hadoop@master
+  
+  [hadoop@slave1 ~]$ cat  ~/.ssh/id_rsa.pub
+  ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCdc3xdmHR4qY5lf0EyhD6cHRSOCOkp0H3heCeLso11hkSMVxowRZg+YCoRwTqfEWD+VkVGyws9EkRjLXXKJ8ND0l+1urlVzpM3tXMZeRfqF5YBHGlIQeAJ4lk1MnR9jev1TbITcKQLVA5GzAZx5MVQxE418UYnLYG2pLS1xIzMyFgr0CwpfpwA7owriclTIQOCa4nieUxYJDLdxmBsumBgPRp+195MCr1zrzwtb3UMEP+DLTHAw3+RBB15QoF3HEVVVhWSAN9ZjYjnit20dPwFnM2amGqpRS4p5wLxwkeyEsrdXkNsrtW+XbhtuxYo0YeusEp4spFhOTmv7lPhdfkv hadoop@slave1
+  
+  [hadoop@slave2 ~]$ cat  ~/.ssh/id_rsa.pub
+  ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtoqqsF2s8FfffiY7sZ545anJ69kf914nENQjwJd2GkgZSUujX4DJnXDSthyLUGr22cN3iaUmATQPm6qzpus/rag+QKms8fHMkaCLG6qeS9CCJZunJ2uWdTAd25H1d9RyTReTQ9tPqHZ4dFXlXeY4QYxiKHVCkOkXWrWLqCcKilDLkU7Z5HiqfPW23pt4WDmXerCIDZbM55152pcK3UF9AwFTBFA0ofQaq7IhrVHSpEsTHYQNWQxgEGYqyUT+ep3bGtvfu6a0621DIUScGlRsptrIFTFZPtO5Enih62VY/aKrA/YhHq1slTsh/tDSs29r6ZVtPNyNF0Ruu0kmPRveR hadoop@slave2
+  
+  # master服务器中authorized_keys的内容如下
+  [hadoop@master ~]$ cat ~/.ssh/authorized_keys 
+  ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCakZ3tpFGp1rgwpRCtdWnXH8mdaBdESwBgrMRftGi3Dj9Lh1icOnLozXmuHaZnm4DVlqkgtlZtq+KDVu2picJ1vPtM9mpCCFAwrYiLsxB+f6bETiWUjZhYJqaTCbxdQIOyHvgeFMqe/nQfSC2c+RXyd/FD6IqV4Im02khEp820pfqVhChgXibk6czORvhC08ChfafCvH1YXaKCKp7lHKzA3iDUdaYTWNK8PdzTx8E6eEdH2w7yOXyVpnsfQS0oercsn5euiEdmXM3XkAnMPD1toWw5yyIprvwO7q9OUXFdMLXzeJILQ/TfeZA/9q4onDnOyqBGgpRfJVGpE1JT9Er/ hadoop@master
+  
+  ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCdc3xdmHR4qY5lf0EyhD6cHRSOCOkp0H3heCeLso11hkSMVxowRZg+YCoRwTqfEWD+VkVGyws9EkRjLXXKJ8ND0l+1urlVzpM3tXMZeRfqF5YBHGlIQeAJ4lk1MnR9jev1TbITcKQLVA5GzAZx5MVQxE418UYnLYG2pLS1xIzMyFgr0CwpfpwA7owriclTIQOCa4nieUxYJDLdxmBsumBgPRp+195MCr1zrzwtb3UMEP+DLTHAw3+RBB15QoF3HEVVVhWSAN9ZjYjnit20dPwFnM2amGqpRS4p5wLxwkeyEsrdXkNsrtW+XbhtuxYo0YeusEp4spFhOTmv7lPhdfkv hadoop@slave1
+  
+  ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDtoqqsF2s8FfffiY7sZ545anJ69kf914nENQjwJd2GkgZSUujX4DJnXDSthyLUGr22cN3iaUmATQPm6qzpus/rag+QKms8fHMkaCLG6qeS9CCJZunJ2uWdTAd25H1d9RyTReTQ9tPqHZ4dFXlXeY4QYxiKHVCkOkXWrWLqCcKilDLkU7Z5HiqfPW23pt4WDmXerCIDZbM55152pcK3UF9AwFTBFA0ofQaq7IhrVHSpEsTHYQNWQxgEGYqyUT+ep3bGtvfu6a0621DIUScGlRsptrIFTFZPtO5Enih62VY/aKrA/YhHq1slTsh/tDSs29r6ZVtPNyNF0Ruu0kmPRveR hadoop@slave2
+  
+  # 将master中的authoized_keys远程到slave1和slave2中
+  [hadoop@master ~]$ scp ~/.ssh/authorized_keys slave1:~/.ssh/
+  [hadoop@master ~]$ scp ~/.ssh/authorized_keys slave2:~/.ssh/
+  
+  # 验证是否免密登录（第一次登录会有提示）,三台服务器都验证，如下以master为例
+  [hadoop@master ~]$ ssh localhost
+  [hadoop@master ~]$ ssh master
+  [hadoop@master ~]$ ssh slave1
+  [hadoop@master ~]$ ssh slave2
+  ```
 
-11. 安装mysql5.7
+12. 安装jdk，配置环境变量，三台服务器配置一样，以master服务器为例
+
+    ```bash
+    # 将jdk-8u77-linux-x64.rpm拷贝到/home/hadoop/中
+    [root@master hadoop]# rpm -ivh /home/hadoop/jdk-8u77-linux-x64.rpm
+    # 切换到hadoop用户
+    [hadoop@master ~]$ vi ~/.bash_profile
+    
+    export JAVA_HOME=/usr/java/jdk1.8.0_77
+    export PATH=$PATH:$JAVA_HOME/bin
+    export CLASSPATH=.:$JAVA_HOME/jre/lib:$JAVA_HOME/lib:$JAVA_HOME/lib/tools.jar
+    
+    source ~/.bash_profile
+    # 验证jdk安装成功
+    [hadoop@master ~]$ java -version
+    ```
+    
+12. 安装mysql5.7
 
     ~~~
     mysql只安装在master服务器中

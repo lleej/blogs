@@ -56,20 +56,36 @@ import pizza
 pizza.make_pizza(16, 'a', 'b', 'c')
 ```
 
+2. 使用`from...import`语句
 
+- 导入函数[变量]: `from collections import iterable`
+- 导入模块: `from mycompay import utils`
+- 导入相对路径: `from . import moduleA`, 导入模块当前目录下的moduleA模块
+- 导入所有模块：`from pizza import *`。慎用：容易造成重名函数[变量]的覆盖
 
-1. 使用`from...import`语句
-    - 导入函数[变量]: `from collections import iterable`
-    - 导入模块: `from mycompay import utils`
-    - 导入相对路径: `from . import moduleA`, 导入模块当前目录下的moduleA模块
-2. 导入模块寻址
-    - Python解释器默认使用`sys.path`中的目录查找导入的模块
+3. 指定别名 `as`
 
-3. 符号表(导入后的可见名称)
-    - 使用`import`导入的模块，模块名称可见
-    - 使用`from...import`导入的函数[变量]，只有函数[变量]可见
-    - 使用`from...import *`导入所有函数[变量] (除`_`开头的名字)可见
-    - 使用内置函数`dir(模块名)`可以查看当前模块所有变量[函数]
+   - 给模块指定别名
+   - 给函数[变量]指定别名
+
+   ```python
+   # 给模块指定别名
+   import numpy as np
+   
+   # 给函数指定别名
+   from pizza import make_pizza as mp
+   ```
+
+3. 导入模块寻址
+
+- Python解释器默认使用`sys.path`中的目录查找导入的模块
+
+4. 符号表(导入后的可见名称)
+
+- 使用`import`导入的模块，模块名称可见
+- 使用`from...import`导入的函数[变量]，只有函数[变量]可见
+- 使用`from...import *`导入所有函数[变量] (除`_`开头的名字)可见
+- 使用内置函数`dir(模块名)`可以查看当前模块所有变量[函数]
 
 #### 使用模块
 1. 使用`import`语句导入的，使用模块内部的变量[函数]时，必须带上完整的模块名称(含包名)

@@ -28,6 +28,9 @@
 5. IDE环境
 
 ## 单元测试
+
+> 通常，最初只要针对代码的重要行为编写测试即可，等项目被广泛使用时再考虑全覆盖
+
 1. 引用Python有内置的模块`unittest`
 2. 创建测试类`class TestXXX(unittest.TestCase): ...`
     - 必须从`unittest.TestCase`继承
@@ -39,5 +42,57 @@
     - assertEqual(a, b). 判断 a == b
     - assertTrue(a == b). 判断 a == b 是真的
     - assertFalse(a == b). 判断 a == b 是假的
+    - assertIn(item, list)。判断item在list中
+    - assertNotIn(item, list)。判断item不再list中
     - assertRaises(ErrObj). 判断是否会触发异常. ErrObj是异常类型.
+5. 对于部分测试用例，测试的变量可以只初始化一次
+    - 使用`setUp()`方法，将多个测试方法中使用的变量集中初始化
+
+```python
+# 导入模块
+import unittest
+
+class Student(object):
+	def __init__(self, name, score):
+		self.name = name
+		self.score = score
+	def get_grade(self):
+		if (self.score < 0) or (self.score > 100):
+			raise ValueError('成绩(%d)必须在0-100之间' % self.score)
+		elif self.score >= 80:
+			return 'A'
+		elif self.score >= 60:
+			return 'B'
+		return 'C'
+
+
+class TestStudent(unittest.TestCase):
+	def test_80_to_100(self):
+		s1 = Student('Bart', 80)
+		s2 = Student('Lisa', 100)
+		self.assertEqual(s1.get_grade(), 'A')
+		self.assertEqual(s2.get_grade(), 'A')
+	def test_60_to_80(self):
+		s1 = Student('Bart', 60)
+		s2 = Student('Lisa', 79)
+		self.assertEqual(s1.get_grade(), 'B')
+		self.assertEqual(s2.get_grade(), 'B')
+	def test_0_to_60(self):
+		s1 = Student('Bart', 0)
+		s2 = Student('Lisa', 59)
+		self.assertEqual(s1.get_grade(), 'C')
+		self.assertEqual(s2.get_grade(), 'C')
+	def test_invalid(self):
+		s1 = Student('Bart', -1)
+		s2 = Student('Lisa', 101)
+		with self.assertRaises(ValueError):
+			s1.get_grade()
+		with self.assertRaises(ValueError):
+			s2.get_grade()
+
+if __name__ == '__main__':
+	unittest.main()
+```
+
+
 
