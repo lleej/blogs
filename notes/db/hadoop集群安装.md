@@ -123,17 +123,6 @@ layout: post
    [root@master hadoop]# reboot
    ```
 
-8. 时间同步，三台服务器配置一样，以master服务器为例
-
-   ```bash
-   # 查看是否安装ntp
-   [root@master ~]# rpm -qa |grep ntp
-   # 如果没有安装，用yum安装
-   [root@master ~]# yum install ntp
-   # 指定时间同步
-   ntpdate time.windows.com
-   ```
-
 9. 创建用户并配置sudo权限，三台服务器配置一样，以master服务器为例
 
    ```bash
@@ -160,6 +149,18 @@ layout: post
   
   # 将master服务器的公钥复制到authorized_keys
   [hadoop@master ~]$ cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
+  
+  # 将本机的公钥拷贝到其他节点上，与后面的合并公钥的方式相同（二选一）
+  # 需要先切换到root用户
+  # 执行完命令后，自动生成authorized_keys文件
+  [root@master hadoop]# ssh-copy-id root@slave1
+  [root@master hadoop]# ssh-copy-id root@slave2
+  
+  [root@slave1 hadoop]# ssh-copy-id root@master
+  [root@slave1 hadoop]# ssh-copy-id root@slave2
+  
+  [root@slave2 hadoop]# ssh-copy-id root@slave1
+  [root@slave2 hadoop]# ssh-copy-id root@master
   
   # 合并公钥,将三台服务器的id_rsa.pub合并到master服务器的authorized_keys中
   [hadoop@master ~]$ cat  ~/.ssh/id_rsa.pub 
