@@ -306,6 +306,30 @@ layout: post
 
 # 部署hadoop
 
+## 注意事项
+
+1. 鉴于hadoop用户的home目录可能挂载在NFS上，Hadoop系统最好不要安装在该目录下
+
+   ```bash
+   % cd /usr/local
+   % sudo tar xzf hadoop-x.y.z.tar.gz
+   ```
+
+2. 需要将Hadoop文件的拥有者改为hadoop用户和组
+
+   ```bash
+   % sudo chown -R hadoop:hadoop hadoop-x.y.z
+   ```
+
+3. 添加Hadoop执行程序所在目录
+
+   ```bash
+   % export HADOOP_HOME=/usr/local/hadoop-x.y.z
+   % export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
+   ```
+
+   
+
 1. 解压hadoop
 
    ~~~

@@ -135,16 +135,124 @@ HDFS中文件是分块存储的，DataNode节点负责管理分块ID与分块文
 
 ## 命名空间
 
-HDFS的命名空间（Namespace）由NameNode节点负责管理，它是整个HDFS的核心，记录着文件与block、block与DataNode的对应关系（文件元数据）
+HDFS的命名空间（Namespace）由NameNode节点负责管理，它是整个HDFS的核心，记录着文件与block、block与DataNode的对应关系
 
 NameNode在启动时，将整颗文件系统树（fsimage和edits）加载到内存中，因此该节点对内存容量要求很高
 
-考虑到命名空间的频繁更新（增、删、改）和持久化保存，将命名空间存储在NameNode的本地文件系统中，由两类文件组成，分别为：fsimage（一个）和editLog（多个）
+考虑到命名空间的频繁更新（增、删、改）和持久化保存，将命名空间存储在NameNode的本地文件系统中，由两类文件组成，分别为：fsimage（多个）和editLog（多个）
 
 - fsimage用于维护文件系统树，以及文件树中所有的文件和文件夹的元数据
-- editLog日志记录了对文件的增、删、改等操作
+- edits日志记录了对文件的增、删、改等操作
 
-文件元数据的格式：
+在 HDFS 启动时，会进行一次检查点操作，将最新的 fsimage 载入内存，并将之后的 edits 文件中的事务逐一执行，并生成新的 fsimage.ckpt 文件，最后重命名为 fsimage 文件
+
+### NameNode中的目录结构
+
+在NameNode中存储命名空间的序列化文件，由一组文件（含fsimage和edits）组成，具体如下所示：
+
+```shell
+${dfs.namenode.name.dir}
+|---- current
+|    |---- VERSION
+|    |---- seen_txid
+|    |---- fsimage_0000000000000000000
+|    |---- fsimage_0000000000000000000.md5
+|    |---- fsimage_0000000000000000015
+|    |---- fsimage_0000000000000000015.md5
+|    |---- edits_0000000000000000001-0000000000000000002
+|    |---- edits_0000000000000000003-0000000000000000015
+|    |---- edits_inprogress_0000000000000000016
+|---- in_use.lock
+```
+
+详细介绍目录中的文件功能
+
+1. {dfs.namenode.name.dir} 目录
+
+   在配置文件中设置的namenode中保存命名空间的目录
+
+2. current目录
+
+   保存当前使用的命名空间存储目录
+
+3. VERSION文件
+
+   保存正在运行的HDFS的版本信息 
+
+   ```shell
+     #Fri Dec 06 22:05:27 CST 2019
+     namespaceID=2082678695
+     clusterID=CID-0dcd19b9-45f8-4db2-8083-804f35c1c7fe
+     cTime=1575302191346
+     storageType=NAME_NODE
+     blockpoolID=BP-1471388629-192.168.8.100-1575302191346
+     layoutVersion=-63
+   ```
+
+   - namespaceID
+
+     命名空间的唯一标识符，在namenode首次初始化`hdfs namenode --format`时创建。每个namenode唯一对应一个标识符
+
+   - clusterID
+
+     集群的唯一标识符，对于联邦HDFS非常重要
+
+   - blockpoolID
+
+     数据池块的唯一标识符，包含了由一个namenode管理的命名空间中的所有文件
+
+   - cTime
+
+     标记namenode存储系统的创建时间
+
+   - storageType
+
+     说明存储目录中包含的是namenode的数据结构
+
+   - layoutVersion
+
+     布局版本，是一个负数。布局变更后版本号会递减
+
+4. fsimage_* 文件
+
+   文件系统镜像文件，由多个文件组成。每个文件名中的数字部分表示文件中的最后一个事务编码（如15）
+
+   secondarynamenode会定期生成检查点文件来帮助namenode更新 fsimage
+
+   - 保存的是文件系统中的目录和文件的`inode`序列化信息
+   - 文件`inode`：复本级别、修改时间、访问时间、访问许可、块大小、组成一个文件的块等
+   - 目录`inode`：修改时间、访问许可、配额元数据等
+
+   注意：在 fsimage 文件中，不保存数据块和datanode的映射关系。namenode将这部分信息放在内存中，由namenode向datanode索取
+
+   **fsimage 文件只保存最后两个**
+
+5. edits_* 文件
+
+   客户端执行写操作时（创建、移动、删除等），这些事务首先被记录到编辑日志中。
+
+   每个编辑日志文件称为一个段，文件名由 `edits` 及后缀组成，后缀指示出包含事务ID信息。例如：`edits_0000000000000000001-0000000000000000002`，表示该编辑日志包含事务ID1--ID2
+
+   任意时刻只有一个编辑日志文件处于可写入状态，命名为：`edits_inprogress_0000000000000000016`
+
+6. seen_txid 文件
+
+   保存当前处于可写入状态的编辑日志的起始事务ID
+
+7. in_use.lock 文件
+
+   保存当前进行写操作的 `namenode` 进程id，使用`jps`指令可以查看
+
+## 数据块存储
+
+数据块存储在 DataNode 中，具体的存储结构和文件说明如下：
+
+```shell
+$ {dfs.datanode.data.dir}/
+|---- current/
+|    |---- BP-1471388629-192.168.8.100-1575302191346/
+|    |    |---- current
+```
 
 
 
@@ -272,11 +380,27 @@ HDFS使用校验和（CRC-32）的方式，对每个chunk进行数据校验
 
 ![secondary](./assets/secondary.png)
 
-1. NameNode创建新的editLog日志文件，新的文件变更将记录在这个文件中
-2. Secondary NameNode从NameNode获得fsimage和edits文件
-3. Secondary NameNode在本地完成合并操作，将edits中的记录合并到fsimage中
-4. Secondary NameNode将合并后的fsimage文件发送给NameNode
-5. NameNode将edits.new和新的fsimage更新到本地文件系统
+### 处理步骤
+
+1. Secondary NameNode 请求 namenode 停止使用正在进行中的 edits 文件。新的编辑操作记录在新的文件中，namenode同时更新所有存储目录中的 seen_txid 文件
+2. Secondary NameNode从NameNode获得最近的 fsimage 和 edits 文件（HTTP GET）
+3. Secondary NameNode 将 fsimage 文件载入内存，逐一执行 edits 文件中的事务，创建合并后的 fsimage.ckpt 文件
+4. Secondary NameNode 将创建的 fsimage.ckpt 文件发送给NameNode（HTTP PUT）
+5. NameNode将 fsimage.ckpt 文件重命名
+
+### 配置参数
+
+创建检查点的触发条件受两个配置参数控制
+
+1. 间隔一定时间创建检查点
+
+   参数：dfs.namenode.checkpoint.period 即间隔时间。单位：秒，默认1小时
+
+2. 编辑日志事务数量达到上限
+
+   参数：dfs.namenode.checkpoint.txns 即事务数量。默认100万
+
+   参数：dfs.namenode.checkpoint.check.period 即检查日志事务数量的间隔时间。单位：秒，默认1分钟
 
 # 联邦架构
 
@@ -308,3 +432,7 @@ HDFS使用校验和（CRC-32）的方式，对每个chunk进行数据校验
 
 
 
+
+  ```
+
+  ```
