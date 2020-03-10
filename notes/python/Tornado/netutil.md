@@ -1,0 +1,11 @@
+- `bind_sockets(port: int,address: str = None,family: socket.AddressFamily = <AddressFamily.AF_UNSPEC: 0>, backlog: int = 128,flags: int = None, reuse_port: bool = False) → List[socket.socket]`
+  - 创建多个处于监听状态的套接字，绑定到指定的端口和地址
+  - 为什么会有多个呢？是因为主机有多个网卡、IP4、IP6
+  - 参数说明
+    - `port`端口号。只能有一个
+    - `address`地址。如果是`IP地址`，则只创建一个套接字；如果是主机名，则创建多个套接字（主机名关联的所有`IP地址`）；如果是`None`，则创建多个套接字（该主机上所有的网卡和接口）
+    - `family`地址族。可以指定`AF_INET`和`AF_INET6`，强制区分`IP4`和`IP6`。默认两者皆可
+    - `backlog`。队列中最多可容纳的等待接受的传入连接数
+    - `flag`。还不清楚具体用法
+  - 返回创建的套接字列表，是一个可迭代对象
+- 

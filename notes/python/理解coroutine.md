@@ -177,3 +177,56 @@ print(value)  # Prints '84'.
 [1]: https://www.python.org/dev/peps/pep-0255/ "Simple Generators"
 [2]: https://www.python.org/dev/peps/pep-0342/ "Coroutines via Enhanced Generators"
 [3]: https://www.python.org/dev/peps/pep-0380/ "Syntax for Delegating to a Subgenerator"
+
+
+
+## 协程的运行
+
+1. 协程是一个异步函数
+2. 执行异步函数返回一个协程对象
+3. 协程对象无法直接调用执行
+
+协程如何执行呢？
+
+1. 在另一个已经运行的协程中用'await`
+2. `ensure_future`在计划中执行（消息循环）
+3. `co.send()`执行
+
+```python
+import asyncio
+import types
+
+@asyncio.coroutine # 需要强制转换为协程，注意不是原生协程
+def inner():
+    print("inner running...")
+    yield 1 # 暂停并返回1
+    print("inner continue...")
+    re = yield 2 # 暂停并返回2 得到send传入的参数
+    print("inner finished.")
+    return re # 返回值是 await调用的返回结果，而不是yield的返回结果
+
+async def outer():
+    print("outer Running...")
+    re = await inner() # return 返回的值，不是最后一个yield返回的值
+    print(f"outer {re} Finished.")
+
+co = outer() # 创建协程 
+print(type(co) is types.CoroutineType) # 是原生协程类型
+print(type(inner()) is types.GeneratorType) # 是生成器类型
+co.send(None) # 启动协程
+try:
+    co.send(None) # 执行到yield 2
+    co.send(10) # 执行到 return
+except StopIteration:
+    pass
+  
+# 执行结果
+True
+True
+outer Running...
+inner running...
+inner continue...
+inner finished.
+outer 10 Finished.
+```
+
