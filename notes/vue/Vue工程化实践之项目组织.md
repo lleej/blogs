@@ -1,4 +1,4 @@
-title: Vue工程化实践 之 项目组织
+title: Vue工程化实践之项目组织
 date: 2019-04-25
 tags: Vue
 categories: 前端 Vue Element
