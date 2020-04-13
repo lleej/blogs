@@ -32,7 +32,7 @@ layout: post
 
 概括的讲，就是清除使用`go`命令创建的文件，非项目源文件
 
-## 参数
+## 命令标记
 
 ### `-x`查看执行命令
 
@@ -50,5 +50,3 @@ cd D:\Users\lijie\go\src\hello
 rm -f hello hello.exe hello.test hello.test.exe hello hello.exe
 rm -f D:\Users\lijie\go\bin\hello.exe # 命令源文件 安装到 bin 子目录下
 ```
-
-若是包源文件，则安装在 `pkg`子目录下
