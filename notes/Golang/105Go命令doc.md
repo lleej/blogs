@@ -131,7 +131,7 @@ package xxx
 
 **示例文件**
 
-便于其他用户能够快速的使用你开发的包，建议添加有包使用`demo`的示例文件，文件名格式：`example_名称_test.go`
+便于其他用户能够快速的使用你开发的包，建议添加包使用`demo`的示例文件，文件名格式：`example_名称_test.go`
 
 `go`源代码`GOROOT/src/encoding/gob/`目录中的示例文件`example_encdec_test.go`
 
@@ -163,7 +163,7 @@ type Stringer interface{
 
 相比于`go doc`在命令行中输出包/实体的注释文档，`godoc`工具输出在网页中查看的`HTML`格式的体验更好。但是，默认安装`golang`并没有安装这个工具（注：版本`1.14.1`）
 
-### 安装步骤
+### 安装步骤，方式一
 
 需要手动下载`godoc`命令包，由于`golang.org`在国内无法正常访问，也就无法通过`go get`指令下载，只能通过手动下载、安装的方式
 
@@ -211,6 +211,23 @@ $ go install golang.org/x/tools/cmd/godoc
 ```
 
 将`godoc`可执行文件安装到`GOPATH/bin`目录下
+
+### 方式二
+
+由于`golang.org`在国内连接的问题，推荐使用`GOPROXY`配置。使用`GOPROXY`需要同时开启`go module`
+
+```bash
+$ go env -w GO111MODULE=on
+$ go env -w GOPROXY=https://goproxy.cn,direct
+```
+
+下载并安装`godoc`工具
+
+```bash
+$ go get golang.org/x/tools/cmd/godoc
+```
+
+将使用`GOPROXY`下载工具包以及其依赖包，然后进行编译成可执行文件`godoc`，存放在`GOPATH`中的`bin`子目录下
 
 ### 如何使用
 
