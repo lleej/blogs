@@ -65,7 +65,7 @@ $ go env -w GOPROXY=https://goproxy.cn,direct
 
 ## 初始化
 
-启用操作完成后，就可以正式使用`go module`进行依赖管理了，为了区别于`GOPATH`，请将当前项目从`GOPATH/src`目录中移出，放到任何一个工作目录中，本例就放在了`/usrs/lleej/work/go/hello`目录下
+启用操作完成后，就可以正式使用`go module`进行依赖管理了，请将当前项目从`GOPATH/src`目录中移出，放到任何一个工作目录中，本例就放在了`/usrs/lleej/work/go/hello`目录下（在`GOPATH/src`目录中，默认还是`GOPATH`模式）
 
 在当前项目的根目录中（注意：必须是项目根目录），初始化当前项目的`mod`管理
 
@@ -120,7 +120,9 @@ github.com/gosoon/glog v0.0.0-20180521124921-a5fbfb162a81/go.mod h1:1e0N9vBl2wPF
 
 ### 创建依赖
 
-`go.mod`文件一旦创建后，它的内容将会被`go toolchain`全面掌控。`go toolchain`会在各类命令，如：`go get`、`go build`、`go mod`执行时，修改和维护`go.mod`文件。
+`go.mod`文件一旦创建后，它的内容将会被`go toolchain`全面掌控。`go toolchain`会在各类命令，如：`go get`、`go build`、`go test`、`go mod`执行时，修改和维护`go.mod`文件。
+
+创建依赖时，自动将项目的依赖包下载到`$GOPATH/pkg/mod`目录中，多项目可以共享缓存`mod`目录中的依赖包
 
 #### 方式一
 
@@ -150,16 +152,53 @@ require github.com/gorilla/mux v1.7.4
 
 注：使用`VS Code`进行开发时（添加插件），当添加`import`导入第三方包，会自动更新`go.mod`并生成`go.sum`文件
 
-## 打包
+注：从远程代码库自动获取的依赖包的版本是`lastest`版本，也就是最新的稳定版本
 
-将项目依赖的包下载到项目目录中的`vendor`子目录中，与项目源代码打包到一起
+## 更新
 
-执行 `go mod vendor` 将项目所有的依赖下载到本地 `vendor` 目录中然后进行编译
-
-## 下载
-
-将项目的依赖包下载到`$GOPATH/pkg/mod`目录中，多项目可以共享缓存`mod`目录中的依赖包
+如果要使用新的依赖包版本（如：从`v1.7.4`更新到`v1.8.0`），需要执行`go get 包名@新版本`操作
 
 ```bash
-$ go mod download
+$ go get github.com/gorilla/mux@v1.8.0
 ```
+
+`go get`操作下载新的依赖包版本，并添加到`go mod`文件中
+
+```go
+module hello
+
+go 1.14
+
+require (
+  github.com/gorilla/mux v1.7.4
+  github.com/gorilla/mux v1.8.0
+)
+```
+
+注：`go get`中的版本号必须是存在的；`go mod`中新版本的依赖包不会覆盖旧版本
+
+## 移除
+
+随着项目的演进，曾经使用的依赖包会失效（因：旧版本/不再使用），这时`go mod`文件中这些依赖包就需要移除
+
+```bash
+$ go mod tidy
+```
+
+执行移除操作后，`go mod`文件会根据项目中`import`语句的包版本，更新依赖项
+
+```go
+module hello
+
+go 1.14
+
+require (
+  github.com/gorilla/mux v1.8.0
+)
+```
+
+## 打包
+
+将项目的依赖的包，下载到项目目录中的`vendor`子目录中，与项目源代码打包到一起
+
+执行 `go mod vendor` 将项目所有的依赖下载到本地 `vendor` 目录中然后进行编译
