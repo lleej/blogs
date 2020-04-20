@@ -20,9 +20,9 @@ layout: post
 
 当然也有解决方案，给`GOPATH`配置多个工作目录，第一个工作目录用来保存第三方下载的库代码包。这样可以解决很多项目公用库代码包的问题，但也同时带来其他问题，比如不同版本的兼容性问题等。
 
-还有一些大牛推荐的替代方案`govener`，将依赖包保存到项目中的`vender`目录中
+还有一些大牛推荐的替代方案`govener`，将依赖包保存到项目中的`vender`目录中，可以独立维护不同项目的依赖包
 
-到了`Go V1.11`版本时，官方推出了`go module`来解决依赖管理的问题
+到了`Go V1.11`版本时，官方推出了`go module`来解决依赖管理的问题。该方案可以将工作目录从`GOPATH`中脱离出来，`GOPATH`只负责保存依赖包，而项目目录可以根据需要自行定义。
 
 ## 启用
 
@@ -65,7 +65,7 @@ $ go env -w GOPROXY=https://goproxy.cn,direct
 
 ## 初始化
 
-启用操作完成后，就可以正式使用`go module`进行依赖管理了，为了区别与`GOPATH`，请将当前项目从`GOPATH/src`目录中移出，放到任何一个工作目录中
+启用操作完成后，就可以正式使用`go module`进行依赖管理了，为了区别于`GOPATH`，请将当前项目从`GOPATH/src`目录中移出，放到任何一个工作目录中，本例就放在了`/usrs/lleej/work/go/hello`目录下
 
 在当前项目的根目录中（注意：必须是项目根目录），初始化当前项目的`mod`管理
 
@@ -76,8 +76,8 @@ $ go mod init [模块名称]
 如果项目是从`github`等远程代码托管平台下载（`clone`），则不需要提供模块名称，自动根据`git`库地址生成
 
 ```bash
-$ go mod init
-$ go mod init myProject
+$ go mod init #从github Clone的项目，不需要指定模块名称
+$ go mod init myProject #myProject 就是模块的名称
 ```
 
 初始化操作执行后，在当前项目的根目录中创建`go.mod`依赖包管理文件
@@ -114,7 +114,13 @@ github.com/gosoon/glog v0.0.0-20180521124921-a5fbfb162a81 h1:JP0LU0ajeawW2xySrbh
 github.com/gosoon/glog v0.0.0-20180521124921-a5fbfb162a81/go.mod h1:1e0N9vBl2wPF6qYa+JCRNIZnhxSkXkOJfD2iFw3eOfg=
 ```
 
+`go`命令使用`go.sum`文件确保这些模块未来下载的版本与第一次下载相同，确保项目所依赖的模块不会出现意外更改，无论是出于恶意、意外还是其他原因。 
+
+注：`go.mod`和`go.sum`都应检入版本控制。`go.sum` 不建议手工维护。
+
 ### 创建依赖
+
+`go.mod`文件一旦创建后，它的内容将会被`go toolchain`全面掌控。`go toolchain`会在各类命令，如：`go get`、`go build`、`go mod`执行时，修改和维护`go.mod`文件。
 
 #### 方式一
 
@@ -148,7 +154,12 @@ require github.com/gorilla/mux v1.7.4
 
 将项目依赖的包下载到项目目录中的`vendor`子目录中，与项目源代码打包到一起
 
-执行 `go mod vendor` 将项目所有的依赖下载到本地 vendor 目录中然后进行编译，下面是一个参考：
+执行 `go mod vendor` 将项目所有的依赖下载到本地 `vendor` 目录中然后进行编译
 
 ## 下载
 
+将项目的依赖包下载到`$GOPATH/pkg/mod`目录中，多项目可以共享缓存`mod`目录中的依赖包
+
+```bash
+$ go mod download
+```
