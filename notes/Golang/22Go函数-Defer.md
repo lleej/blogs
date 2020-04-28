@@ -1,4 +1,4 @@
-title: 21.Go函数之Deferred函数
+title: 22.Go函数之Deferred函数
 date: 2020-04-27
 tags: Go
 categories: Go语言
