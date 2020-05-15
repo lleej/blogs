@@ -10,6 +10,8 @@ layout: post
 
 <!-- more -->
 
+## 概念
+
 并发：指同时进行多个任务的程序。例如：`Web`服务可以处理成千上万的请求，页面可以边渲染、边响应输入、边发送请求等，随着计算机硬件的发展（多核、多线程）以及互联网的发展，并发程序越来越重要
 
 `Go`语言中的并发程序可以用两种手段来实现：
@@ -18,6 +20,20 @@ layout: post
 - 现代模式：顺序通信进程`CSP（communicating sequential processes）`
 
 `Go`的并发有些类似于`Python`的协程，其并发性能和数量远远优于传统的并发模式。并发的良好支持也是`Go`语言被众多大厂重视和应用的原因之一
+
+### 之前发生
+
+**之前发生`happens before`**是`Go`语言并发内存模型的一个关键术语
+
+- 表述为：`x`事件在`y`事件之前发生
+  - 真实的意思：保证在`y`之前的事件`x`都已经完成。如：更新变量的操作已经完成，可以放心依赖已完成事件
+  - 而不是：`x`事件在时间上比`y`发生的更早
+
+- 表述为：`x`事件既不在`y`事件之前发生，也不在`y`事件之后发生
+  - 真实的意思：`x`事件和`y`事件是并发的，我们不能确定两个事件发生的先后顺序
+  - 而不是：`x`事件和`y`事件是同时发生的
+
+当两个`goroutine`并发访问相同的变量时，我们有必要保证某些事件的执行顺序，以避免出现某些并发问题
 
 ## Goroutines
 
@@ -90,6 +106,8 @@ for x := range channels {...} // 使用range语句，自动循环取数据，当
 我们可以利用无缓存`channels`的同步特点，在`main goroutine`退出前，等待其他`goroutine`安全退出
 
 通过`channels`传递消息有两个要点：数据本身、行为本身。当我们更希望强调通讯发生的行为时，我们将它称为**消息事件**。对于消息事件来说，可以发送任何数据，但通常我们发送一个空结构数据
+
+通过一个无缓存`Channels`发送数据时，接收者收到数据发生在唤醒发送者`goroutine`之前
 
 ```go
 done := make(chan struct{})
@@ -182,7 +200,128 @@ func main() {
 - 利用无缓存的消息事件。`main goroutine`挂起，直到`goroutine`发送消息后退出
 - 发送方关闭`channels`，接收方接收时返回`ok==false`
 
+## 并发循环
 
+介绍在并行时循环迭代的常见并发模型。并发循环的关键是要确保所有`goroutine`都执行完毕，通常情况有两种实现方式。下面就一步步进行讲解，案例要实现批量生成图片的缩略图
+
+**原代码**在一个循环中依次处理图片
+
+```go
+func makeThumbnails(filenames []string) {
+    for _, f := range filenames {
+        if _, err := thumbnail.ImageFile(f); err != nil {
+            log.Println(err)
+        }
+    }
+}
+```
+
+要提高性能，需要将每个`thumbnail.ImageFile`处理函数放到独立的`goroutine`中，且`main goroutine`必须等到所有的`work goroutine`都执行完毕后才能退出。这就需要使用`channels`实现
+
+### **方式一：消息事件**
+
+每个`work goroutine`执行完毕后，向`channels`发送一个**消息事件**，`main goroutine`接收到消息后计数，接收到全部消息后完成
+
+```go
+func makeThumbnails11(filenames []string) {
+    ch := make(chan struct{})
+    for _, f := range filenames {
+        go func(f string) {
+            thumbnail.ImageFile(f) // NOTE: ignoring errors
+            ch <- struct{}{} // 消息事件
+        }(f)
+    }
+    // Wait for goroutines to complete.
+    for range filenames { // 循环次数与处理次数相同（计数模式）
+        <-ch
+    }
+}
+```
+
+### **方式二：执行结果**
+
+每个`work goroutine`执行完毕后，向`channels`发送一个执行结果的消息，`main goroutine`接收到消息后计数并处理信息，接收到全部消息后完成。消息不仅起到通知状态的作用，还包含执行的结果信息（如：文件名、尺寸等）
+
+```go
+func makeThumbnails12(filenames []string) (thumbfiles []string, err error) {
+    type item struct {  // 消息格式
+        thumbfile string
+        err       error
+    }
+    ch := make(chan item, len(filenames)) // 有缓存channels
+    for _, f := range filenames {
+        go func(f string) {
+            var it item
+            it.thumbfile, it.err = thumbnail.ImageFile(f)
+            ch <- it // 有足够的缓存，因此无需等待
+        }(f)
+    }
+    for range filenames {
+        it := <-ch
+        if it.err != nil {
+            return nil, it.err // 直接返回无BUG，虽然没有接收所有的消息，但所有goroutine都能安全退出
+        }
+        thumbfiles = append(thumbfiles, it.thumbfile)
+    }
+    return thumbfiles, nil
+}
+```
+
+这里使用了缓存`channels`，而且缓存的容量正好是`work goroutine`的数量。因此，每个`goroutine`执行完毕时将直接退出，并不会被阻塞等待读取。也是因为这个原因，在`main goroutine`读取消息时，可以随时中断退出。
+
+如果我们使用的是无缓存`channels`，在`main goroutine`读取消息时，遇到错误直接返回将导致**`goroutine`泄露**，这些`goroutine`将会一直处于阻塞状态，而不能得到释放
+
+### **方式三：同步计数**
+
+有时，我们无法事先预知循环的次数（如：上例中的文件名是通过`channels`传递的）。这时可以使用同步计数的方式，在`goroutine`执行前计数，在`goroutine`执行完后减数，通过加减匹配实现计数功能
+
+```go
+func makeThumbnails13(filenames <-chan string) int64 { // filenames 是一个 channels
+    sizes := make(chan int64)
+    var wg sync.WaitGroup // 1.声明计数器
+    for f := range filenames {
+        wg.Add(1) // 2. 主goroutine中，对计数器+1
+        // worker
+        go func(f string) {
+            defer wg.Done() // 3.goroutine退出时，计数器-1 
+            thumb, err := thumbnail.ImageFile(f)
+            if err != nil {
+                log.Println(err)
+                return
+            }
+            info, _ := os.Stat(thumb) // OK to ignore error
+            sizes <- info.Size()
+        }(f)
+    }
+
+    // closer 相当于值守goroutine，在后台监控计数器的状态
+    go func() {
+        wg.Wait() // 4. 监控计数清零，挂起状态，直到为0
+        close(sizes) // 5. 关闭work 与 main 之间的channels
+    }()
+
+    var total int64
+    for size := range sizes { //6. 关闭channels后，退出循环
+        total += size
+    }
+    return total
+}
+```
+
+需要注意的是：使用的计数器必须能够保证在并发`goroutine`中的安全，本例中使用的是`sync.WaitGroup`
+
+- 确保计数器加`1`行为，是发生在`closer`这个`goroutine`执行前（`happend before`）
+- 每个`goroutine`执行后，对计数器减一
+- 使用`closer`这个`goroutine`监控计数器是否清零，即所有`work goroutine`执行完毕。当执行完毕后就会关闭`sizes`这个`channels`
+- 关闭`channels`将导致`range sizes`退出循环，随即`main goroutine`退出
+
+### 限制并发数
+
+有时我们需要限制并发的数量（如：同时打开过多的文件/`socket`会导致资源不足）
+
+### 多路复用
+
+### 并发退出
 
 
 
