@@ -6,7 +6,7 @@ layout: post
 
 ------
 
-摘要：本节介绍`Go`语言中并发的一些基本知识
+摘要：`CSP`是一种现代的并发编程模型，在这种编程模型中值会在不同的运行实例`goroutine`中传递，尽管大多数情况下仍然是被限制在单一实例中
 
 <!-- more -->
 
@@ -570,9 +570,133 @@ loop:
 
 `Go`语言并没有提供在一个`goroutine`中终止另一个`goroutine`的方法。因为这样会导致`goroutine`之间的共享变量落在未定义的状态上
 
-可能需要终止一定数量的`goroutine`，而不仅仅是某几个
+可能需要终止一定数量的`goroutine`，而不仅仅是某几个。当`goroutine`数量未知时（存在`goroutine`中创建新的`goroutine`的嵌套），通过消息事件是无法准确的实现通知到需要中断的`goroutine`的。即使事先直到`goroutine`的准确数量，但是否有`goroutine`已经退出也无从得知（**难道就没有监控`goroutine`运行状态的机制吗？**）
 
-当`goroutine`数量未知时（存在`goroutine`中创建新的`goroutine`的嵌套），通过消息事件是无法准确的实现通知到需要中断的`goroutine`的
+因此，我们需要一种广播的通知机制，让连接该`channels`的所有`goroutine`都能够安全的接收到通知。这种机制就是：不是向`channel`发送值，而是用关闭`channel`来进行广播
 
-需要一种能够广播的通知机制，让连接该`channels`的所有`goroutine`都能够安全的接收到通知
+```go
+// 定义一个全局的channels，用于进行退出通知
+// 该channels不会写入任何数据。因此，若能够读到数据，则表示该channels已经关闭
+var done = make(chan struct{})
+// 通过封装一个函数，检查是否允许退出
+func cancelled() bool {
+    select {
+    case <-done:
+        return true
+    default:
+        return false
+    }
+}
+```
+
+`work goroutine`的第一件事，就是检查是否取消。这样可以确保，当进入退出状态后，不会再有新的`work goroutine`被执行
+
+```go
+func walkDir(dir string, n *sync.WaitGroup, fileSizes chan<- int64) {
+    defer n.Done()
+    if cancelled() {
+        return
+    }
+    for _, entry := range dirents(dir) {
+        // ...
+    }
+}
+```
+
+### 验证安全退出
+
+我们知道：当`main goroutine`返回后，程序退出。这时，我们无法得知所有的资源是否被释放（如：所有的`work goroutine`）。有没有办法可以监控这些资源是否安全释放呢？
+
+**把主函数的正常返回，替换为调用`panic`**。这样`runtime`会把`goroutine`的栈`dump`下来，观察`goroutine`：
+
+- 只有`main goroutine`：所有`work goroutine`已全部退出，所有资源均被释放。
+- 其它`work goroutine`：没有正确地退出，或者退出操作很费时间
+
+我们用`panic`来获取到足够的信息来验证我们上面的判断，看看最终到底是什么样的情况。当然了，在正式的代码中，我们不要这么做
+
+### 示例：聊天服务
+
+```go
+type client chan<- string // an outgoing message channel
+
+var (
+    entering = make(chan client) // channels传递channels
+    leaving  = make(chan client) // channels传递channels
+    messages = make(chan string) // 接收到的需要广播的消息
+)
+
+func broadcaster() {
+  	// 只在一个goroutine中读写，安全的
+    clients := make(map[client]bool) // 每个连接的客户端的channels
+    for {
+        select {
+        case msg := <-messages: 
+            // Broadcast incoming message to all
+            // clients' outgoing message channels.
+          	// 消息由clientWriter这个goroutine发送，消息通过channels传递
+            for cli := range clients {
+                cli <- msg 
+            }
+        case cli := <-entering:
+            clients[cli] = true
+
+        case cli := <-leaving:
+            delete(clients, cli)
+          	// 关闭客户端对应的channles
+            close(cli)
+        }
+    }
+}
+func handleConn(conn net.Conn) {
+    ch := make(chan string) // 向这个客户端写入消息的channels
+    go clientWriter(conn, ch)
+
+  	// 每次收到新的客户端连接，需要做三件事
+  	// 1. 向客户端发送他的地址
+  	// 2. 向所有客户端广播有新的客户端上线
+  	// 3. 将新客户端加入管理
+    who := conn.RemoteAddr().String()
+    ch <- "You are " + who
+    messages <- who + " has arrived"
+    entering <- ch
+
+  	// 从客户端终端输入的消息，都是发送给所有其他客户端
+    input := bufio.NewScanner(conn)
+    for input.Scan() {
+        messages <- who + ": " + input.Text()
+    }
+    // NOTE: ignoring potential errors from input.Err()
+
+  	// 被中断后，清理资源
+  	// 1. 通知goroutine该channels关闭
+  	// 2. 通知所有客户端，下线了
+  	// 3. 关闭conn连接
+    leaving <- ch
+    messages <- who + " has left"
+    conn.Close()
+}
+func clientWriter(conn net.Conn, ch <-chan string) {
+    for msg := range ch {
+        fmt.Fprintln(conn, msg) // NOTE: ignoring network errors
+    }
+}
+func main() {
+    listener, err := net.Listen("tcp", "localhost:8000")
+    if err != nil {
+        log.Fatal(err)
+    }
+    go broadcaster()
+    for {
+        conn, err := listener.Accept()
+        if err != nil {
+            log.Print(err)
+            continue
+        }
+        go handleConn(conn)
+    }
+}
+```
+
+- 长期的`goroutine`：`main goroutine`和`braodcaster`
+- 短期的`goroutine`：`handleConn`和`clientWriter`
 
