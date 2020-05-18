@@ -197,12 +197,20 @@ func main() {
 
 使用`channels`可以安全的退出`goroutine`，常用的有两种方式：
 
-- 利用无缓存的消息事件。`main goroutine`挂起，直到`goroutine`发送消息后退出
-- 发送方关闭`channels`，接收方接收时返回`ok==false`
+- 利用`channels`消息，`main goroutine`等待接收消息，收到所有`work goroutine`发送的消息再退出
+  - 有无消息体
+    - 无消息体：即消息事件，仅仅起到通知作用
+    - 有消息体：可以使用消息体，传递必要的数据
+  - 是否有缓存
+    - 无缓存：`main goroutine`必须保证接收所有消息后才能中断，否则会导致`goroutine 泄露`
+    - 有缓存：缓存的数量与`work goroutine`数量一致。`main goroutine`可以随时中断而不会导致泄露
+- 利用`channels`状态
+  - 监控`gotoutine`关闭`channels`，`main goroutine`判断`ok==false`则退出（或者使用`range`关键字）
+  - 使用额外的计数器（如：`sync.WaitGroup`）
 
 ## 并发循环
 
-介绍在并行时循环迭代的常见并发模型。并发循环的关键是要确保所有`goroutine`都执行完毕，通常情况有两种实现方式。下面就一步步进行讲解，案例要实现批量生成图片的缩略图
+介绍在并行时循环迭代的常见并发模型。并发循环的关键是要确保所有`work goroutine`都执行完毕，通常情况有两种实现方式。案例：实现批量生成图片的缩略图
 
 **原代码**在一个循环中依次处理图片
 
@@ -216,7 +224,7 @@ func makeThumbnails(filenames []string) {
 }
 ```
 
-要提高性能，需要将每个`thumbnail.ImageFile`处理函数放到独立的`goroutine`中，且`main goroutine`必须等到所有的`work goroutine`都执行完毕后才能退出。这就需要使用`channels`实现
+要提高性能，需要将每个`thumbnail.ImageFile`处理函数放到独立的`goroutine`中，且`main goroutine`必须等待所有`work goroutine`执行完毕后才能退出。需要使用`channels`实现
 
 ### **方式一：消息事件**
 
@@ -237,6 +245,8 @@ func makeThumbnails11(filenames []string) {
     }
 }
 ```
+
+使用无缓存或有缓存`channels`都可以，毕竟在`main goroutine`中需要读取指定数量的消息通知（阻塞等待）。
 
 ### **方式二：执行结果**
 
@@ -273,7 +283,7 @@ func makeThumbnails12(filenames []string) (thumbfiles []string, err error) {
 
 ### **方式三：同步计数**
 
-有时，我们无法事先预知循环的次数（如：上例中的文件名是通过`channels`传递的）。这时可以使用同步计数的方式，在`goroutine`执行前计数，在`goroutine`执行完后减数，通过加减匹配实现计数功能
+有时，我们**无法事先预知循环的次数**（如：上例中的文件名是通过`channels`传递的）。这时可以使用同步计数的方式，在`goroutine`执行前计数，在`goroutine`执行完后减数，通过加减匹配实现计数功能
 
 ```go
 func makeThumbnails13(filenames <-chan string) int64 { // filenames 是一个 channels
@@ -310,18 +320,259 @@ func makeThumbnails13(filenames <-chan string) int64 { // filenames 是一个 ch
 
 需要注意的是：使用的计数器必须能够保证在并发`goroutine`中的安全，本例中使用的是`sync.WaitGroup`
 
-- 确保计数器加`1`行为，是发生在`closer`这个`goroutine`执行前（`happend before`）
+- 确保计数器加`1`行为发生在`closer`这个`goroutine`执行前（`happend before`）
 - 每个`goroutine`执行后，对计数器减一
 - 使用`closer`这个`goroutine`监控计数器是否清零，即所有`work goroutine`执行完毕。当执行完毕后就会关闭`sizes`这个`channels`
 - 关闭`channels`将导致`range sizes`退出循环，随即`main goroutine`退出
 
+如果不需要将缩略图的文件尺寸返回给`main goroutine`，则可以不进行`channels`读写操作
+
 ### 限制并发数
 
-有时我们需要限制并发的数量（如：同时打开过多的文件/`socket`会导致资源不足）
+并发虽然有这么多优势，但也不是并发数越多越好。我们的系统有一些限制因素（如：`CPU`核数、硬盘读写速度、网络带宽、服务容量等），增加并发数量来提升性能会遇到一个峰值，超过峰值后并发数量的增加并不能提升性能，有时还会导致一些问题（如：打开过多的文件/`socket`会导致资源不足）。因此，我们需要限制并发的数量来适应运行环境
 
-### 多路复用
+限制并发数可以有几种常见的模式：
 
-### 并发退出
+- 缓存`channels`
 
+  我们知道`channels`有同步`goroutine`的作用，而有缓存的`channels`提供了类似计数信号量的作用，用缓存的容量控制并发数量。并发`goroutine`的**最大数量**是`channels`的容量，实际`goroutine`的数量与`channels`中消息数量有关，是**动态变化的**
 
+  ```go
+  // 无缓存
+  func makeThumbnails11(filenames []string) {
+      ch := make(chan struct{})
+      token := make(chan struct{}, 20) // 1. token 计数信号量 20个
+      for _, f := range filenames {
+          go func(f string) {
+              token <- struct{}{} // 2. 请求令牌，如果缓存中有剩余空间，则继续
+              thumbnail.ImageFile(f) // NOTE: ignoring errors
+              <- token // 3. 释放令牌
+              ch <- struct{}{} // 消息事件
+          }(f)
+      }
+      // Wait for goroutines to complete.
+      for range filenames { // 循环次数与处理次数相同（计数模式）
+          <-ch
+      }
+  }
+  
+  // 有缓存
+  func makeThumbnails22(filenames []string) (thumbfiles []string, err error) {
+      type item struct {  // 消息格式
+          thumbfile string
+          err       error
+      }
+      ch := make(chan item, len(filenames)) // 有缓存channels
+      token := make(chan struct{}, 20) // 1. token 计数信号量 20个
+      for _, f := range filenames {
+          go func(f string) {
+              var it item
+              token <- struct{}{} // 2. 请求令牌，如果缓存中有剩余空间，则继续
+              it.thumbfile, it.err = thumbnail.ImageFile(f)
+              <- token // 3. 释放令牌
+              ch <- it // 有足够的缓存，因此无需等待
+          }(f)
+      }
+      for range filenames {
+          it := <-ch
+          if it.err != nil {
+              return nil, it.err // 直接返回无BUG，虽然没有接收所有的消息，但所有goroutine都能安全退出
+          }
+          thumbfiles = append(thumbfiles, it.thumbfile)
+      }
+      return thumbfiles, nil
+  }
+  ```
+
+- 固定数量`goroutine`
+
+  固定数量`goroutine`：一开始就启动固定数量的`goroutine`（数量与运行环境有关）。并发数是**固定的**，而不管实际的处理需要
+
+  ```go
+  func makeThumbnails13(filenames <-chan string) int64 { // filenames 是一个 channels
+      sizes := make(chan int64)
+      var wg sync.WaitGroup // 声明计数器
+      for i := 0; i < 20; i++ { // 创建固定20个goroutine
+          go func() { // 将原来的处理代码移动到这里，20个goroutine并发从filenames这个channels读取数据
+          	for f := range filenames {
+          		wg.Add(1) // 2. 主goroutine中，对计数器+1
+          		// worker
+          		go func(f string) {
+              		defer wg.Done() // 3.goroutine退出时，计数器-1 
+              		thumb, err := thumbnail.ImageFile(f)
+              		if err != nil {
+                  		log.Println(err)
+                  		return
+              		}
+              		info, _ := os.Stat(thumb) // OK to ignore error
+              		sizes <- info.Size()
+          		}(f)
+              }
+          }        
+      }
+  
+      // closer 相当于值守goroutine，在后台监控计数器的状态
+      go func() {
+          wg.Wait() // 4. 监控计数清零，挂起状态，直到为0
+          close(sizes) // 5. 关闭work 与 main 之间的channels
+      }()
+  
+      var total int64
+      for size := range sizes { //6. 关闭channels后，退出循环
+          total += size
+      }
+      return total
+  }
+  ```
+
+## 多路复用
+
+需要对多个`channels`进行读写操作时，需要这样的处理方式：哪个`channels`可以操作时，就处理该`channels`
+
+```go
+// 当有两个channels需要操作时
+ch1 = make(chan int)
+ch2 = make(chan int)
+for {
+    x := <-ch1  
+    y := <-ch2
+}
+//先读ch1,再读ch2的问题
+//如果ch1阻塞，就不会读ch2，写ch2的goroutine就阻塞，可能造成锁死
+```
+
+对于多个`channels`的操作，`Go`提供了多路复用的操作方式
+
+```go
+select {
+case <-ch1:
+    // ...
+case x := <-ch2:
+    // ...use x...
+case ch3 <- y:
+    // ...
+default:
+    // ...
+}
+```
+
+- 每一个`case`代表一个通信操作（在某个`channel`上进行发送或者接收）的语句块
+  - 接收表达式可以只包含接收表达式自身（`ch1`）
+  - 接收表达式可以包含简短的变量声明（将接收到的数据保存到变量中`ch2`）
+  - 发送表达式（`ch3`）
+- `default`分支
+  - 当没有任何通信操作可用时，进入这个分支
+- 没有任何`case`的`select`语句写作`select{}`，会永远地等待下去
+- 如果多个`case`同时就绪时，`select`会随机地选择一个，保证每个`channel`都有平等的被`select`的机会
+
+```go
+var ch1 = make(chan struct{})
+var ch2 = make(chan string)
+var ch3 = make(chan int)
+go func() {
+	x := <-ch3
+	fmt.Println("read ch3", x)
+}()
+// time.Sleep(2 * time.Second)
+select {
+case <-ch1:
+	fmt.Println("read ch1")
+case x := <-ch2:
+	fmt.Println("read ch2", x)
+case ch3 <- 3:
+	fmt.Println("write ch3", 3)
+default:
+	fmt.Println("default case")
+}
+// 屏蔽延时的输出
+"default case"
+// 加入延时的输出
+("read ch3") 可能不会出现
+"write ch3"
+```
+
+### 示例
+
+遍历计算机文件系统的目录，并打印输出目录中的文件数量和容量
+
+```go
+// walkDir recursively walks the file tree rooted at dir
+// and sends the size of each found file on fileSizes.
+func walkDir(dir string, wg *sync.WaitGroup, fileSizes chan<- int64) {
+    defer wg.Done()
+    for _, entry := range dirents(dir) {
+        if entry.IsDir() {
+            subdir := filepath.Join(dir, entry.Name())
+            wg.Add(1)
+            walkDir(subdir, fileSizes)
+        } else {
+            fileSizes <- entry.Size()
+        }
+    }
+}
+// dirents returns the entries of directory dir.
+var token = make(chan struct{}, 20) // 限制并发数量
+func dirents(dir string) []os.FileInfo {
+    defer func() { <-token }() //释放token
+    token <- struct{}{} //获取token
+    entries, err := ioutil.ReadDir(dir)
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "du1: %v\n", err)
+        return nil
+    }
+    return entries
+}
+// 输出磁盘信息
+func printDiskUsage(nfiles, nbytes int64) {
+    fmt.Printf("%d files  %.1f GB\n", nfiles, float64(nbytes)/1e9)
+}
+func main() {
+    // Determine the initial directories.
+    flag.Parse()
+    roots := flag.Args()
+    if len(roots) == 0 {
+        roots = []string{"."}
+    }
+    // Traverse the file tree.
+    fileSizes := make(chan int64)
+    var n sync.WaitGroup // 定义计数信号量
+    for _, root := range roots {
+        n.Add(1)
+        go walkDir(root, &n, fileSizes)
+    }
+    // 监控计数信号量
+    go func() {
+        n.Wait()
+        close(fileSizes)
+    }()
+    // Print the results.
+    var tick <-chan time.Time
+    tick = time.Tick(500 * time.Millisecond)
+    var nfiles, nbytes int64
+loop:
+    for {
+        select {
+        case size, ok := <-fileSizes:
+            if !ok {
+                break loop // fileSizes was closed
+            }
+            nfiles++
+            nbytes += size
+        case <-tick: //每隔500毫秒，输出一次信息
+            printDiskUsage(nfiles, nbytes)
+        }
+    }
+    printDiskUsage(nfiles, nbytes) // final totals
+}
+```
+
+## 并发退出
+
+`Go`语言并没有提供在一个`goroutine`中终止另一个`goroutine`的方法。因为这样会导致`goroutine`之间的共享变量落在未定义的状态上
+
+可能需要终止一定数量的`goroutine`，而不仅仅是某几个
+
+当`goroutine`数量未知时（存在`goroutine`中创建新的`goroutine`的嵌套），通过消息事件是无法准确的实现通知到需要中断的`goroutine`的
+
+需要一种能够广播的通知机制，让连接该`channels`的所有`goroutine`都能够安全的接收到通知
 
