@@ -159,5 +159,97 @@ type Value struct {
 
 ### 取地址
 
+不是所有的`Value`都是**可取地址**的，看下面的例子
+
+```go
+x := 2                   // value   type    variable?
+a := reflect.ValueOf(2)  // 2       int     no
+b := reflect.ValueOf(x)  // 2       int     no
+c := reflect.ValueOf(&x) // &x      *int    no
+d := c.Elem()            // 2       int     yes (x)
+```
+
+如何正确取`Value`的地址呢？
+
+```go
+x := 2
+a := reflect.ValueOf(&x).Elem()
+```
+
+每当我们通过指针间接地获取的`reflect.Value`都是可取地址的
+
+怎么知道一个`Value`是否可以取地址呢？使用`CanAddr()`方法
+
+```go
+fmt.Println(a.CanAddr()) // "false"
+fmt.Println(b.CanAddr()) // "false"
+fmt.Println(c.CanAddr()) // "false"
+fmt.Println(d.CanAddr()) // "true"
+```
+
+### 设置新值
+
+先介绍一种比较麻烦的用法：
+
+- 调用`Addr()`方法获得`Value`
+- 调用`Interface()`方法获得其`interface{}`接口值
+- 对于已知类型，使用类型断言机制转换成具体类型
+- 变量赋值
+
+```go
+x := 2
+d := reflect.ValueOf(&x).Elem()   // d refers to the variable x
+px := d.Addr().Interface().(*int) // px := &x
+*px = 3                           // x = 3
+fmt.Println(x)                    // "3"
+```
+
+常用的做法是，对于可取地址的`Value`值，调用`Set*`函数，直接设置新值即可
+
+```go
+d.Set(reflect.ValueOf(4))
+fmt.Println(x) // "4"
+```
+
+`Set`函数的参数是`Value`类型，当不确定`d`的具体类型时，可以用该方法
+
+```go
+d := reflect.ValueOf(&x).Elem()
+d.SetInt(3)
+fmt.Println(x) // "3"
+```
+
+还有很多`Set*`方法，用于设置具体类型的值。如：`SetInt`、`SetUint`、`SetString`和`SetFloat`等
+
+在设置新值时一定要注意，变量的类型与值类型必须匹配
+
+- 对于`interface{}`接口类型的变量，只能使用`Set`方法，而不能用对应具体类型的`Set*`方法
+- 无论用哪种`Set`方法，变量类型和值类型必须匹配
+
+```go
+d.Set(reflect.ValueOf(int64(5))) // panic: int64 is not assignable to int
+
+var y interface{}
+ry := reflect.ValueOf(&y).Elem()
+ry.SetInt(2)                     // panic: SetInt called on interface Value
+```
+
+是不是所有的可取地址的`Value`都可以设置值呢？答案是否定的
+
+可以调用`CanSet()`方法，返回当前变量是否可以设置值
+
+```go
+stdout := reflect.ValueOf(os.Stdout).Elem() // *os.Stdout, an os.File var
+fmt.Println(fd.CanAddr(), fd.CanSet()) // "true false"
+```
+
+我们可以从下例中看到，使用反射机制可以打破导出规则的限制读取结构体中未导出的成员，但不能修改这些成员
+
+```go
+fd := stdout.FieldByName("fd")
+fmt.Println(fd.Int()) // "1"
+fd.SetInt(2)          // panic: unexported field
+```
+
 
 
