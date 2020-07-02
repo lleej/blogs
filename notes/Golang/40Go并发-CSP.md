@@ -64,7 +64,7 @@ go f() // create a new goroutine that calls f(); don't wait
 
 每个`channels`都必须指定可以发送的数据类型（使用`interface{}`可以发送任何类型的数据）
 
-初始化一个`channels`需要使用`make`语句，复制`channels`或作为参数传递时，只是拷贝其引用，其实指向的是同一个`channels`对象
+初始化一个`channels`需要使用`make`语句，复制`channels`或作为参数传递时，只是拷贝其引用，实际指向的是同一个`channels`对象
 
 ```go
 var ch = make(chan 数据类型[, 容量])
@@ -570,7 +570,7 @@ loop:
 
 `Go`语言并没有提供在一个`goroutine`中终止另一个`goroutine`的方法。因为这样会导致`goroutine`之间的共享变量落在未定义的状态上
 
-可能需要终止一定数量的`goroutine`，而不仅仅是某几个。当`goroutine`数量未知时（存在`goroutine`中创建新的`goroutine`的嵌套），通过消息事件是无法准确的实现通知到需要中断的`goroutine`的。即使事先直到`goroutine`的准确数量，但是否有`goroutine`已经退出也无从得知（**难道就没有监控`goroutine`运行状态的机制吗？**）
+可能需要终止一定数量的`goroutine`，而不仅仅是某几个。当`goroutine`数量未知时（存在`goroutine`中创建新的`goroutine`的嵌套），通过消息事件是无法准确的实现通知到需要中断的`goroutine`的。即使事先知道`goroutine`的准确数量，但是否有`goroutine`已经退出也无从得知（**难道就没有监控`goroutine`运行状态的机制吗？**）
 
 因此，我们需要一种广播的通知机制，让连接该`channels`的所有`goroutine`都能够安全的接收到通知。这种机制就是：不是向`channel`发送值，而是用关闭`channel`来进行广播
 
