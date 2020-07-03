@@ -46,15 +46,20 @@ type Model struct {
 ```go
 type User struct {
   gorm.Model	// 嵌入了Model类型的四个成员
-  Name         string
-  Age          sql.NullInt64
-  Birthday     *time.Time
-  Email        string  `gorm:"type:varchar(100);unique_index"`
-  Role         string  `gorm:"size:255"` // 设置字段大小为255
-  MemberNumber *string `gorm:"unique;not null"` // 设置会员号（member number）唯一并且不为空
-  Num          int     `gorm:"AUTO_INCREMENT"` // 设置 num 为自增类型
-  Address      string  `gorm:"index:addr"` // 给address字段创建名为addr的索引
-  IgnoreMe     int     `gorm:"-"` // 忽略本字段
+  Name         		string
+  Age          		sql.NullInt64
+  Birthday     		*time.Time
+  Email        		string  `gorm:"type:varchar(100);unique_index"`
+  Role         		string  `gorm:"size:255"` // 设置字段大小为255
+  MemberNumber 		*string `gorm:"unique;not null"` // 设置会员号（member number）唯一并且不为空
+  Num          		int     `gorm:"AUTO_INCREMENT"` // 设置 num 为自增类型
+  Address      		string  `gorm:"index:addr"` // 给address字段创建名为addr的索引
+	CreditCard   		CreditCard  // One-To-One relationship (has one - use CreditCard's UserID as foreign key)
+  Emails       		[]Email // One-To-Many relationship (has many - use Email's UserID as foreign key)
+  BillingAddress 	Address // One-To-One relationship (belongs to - use BillingAddressID as foreign key)
+  ShippingAddress Address // One-To-One relationship (belongs to - use ShippingAddressID as foreign key)
+  IgnoreMe        int `gorm:"-"`   // Ignore this field
+  Languages       []Language `gorm:"many2many:user_languages;"` // Many-To-Many relationship, 'user_languages' is join table
 }
 ```
 
@@ -153,6 +158,47 @@ type User struct {
 }
 ```
 
+如果字段名使用驼峰命名方式，如：`CreateAt`，则两个单词间默认使用`_`连接
+
+```go
+type User struct {
+  CreatedAt time.Time // column name is `created_at`
+}
+```
+
+可以使用`tag`设置字段名称
+
+```go
+type Animal struct {
+    AnimalId    int64     `gorm:"column:beast_id"`         // set column name to `beast_id`
+    Birthday    time.Time `gorm:"column:day_of_the_beast"` // set column name to `day_of_the_beast`
+    Age         int64     `gorm:"column:age_of_the_beast"` // set column name to `age_of_the_beast`
+}
+```
+
+使用`CreateAt`字段存储记录的创建时间，由`gorm`框架实现
+
+```go
+db.Create(&user) // will set `CreatedAt` to current time
+
+// To change its value, you could use `Update`
+db.Model(&user).Update("CreatedAt", time.Now())
+```
+
+使用`UpdateAt`字段存储记录的更新时间，由`gorm`框架实现
+
+```go
+// Whenever one or more `user` fields are edited using Save() or Update(), `UpdatedAt` will be set to current time
+db.Save(&user) // will set `UpdatedAt` to current time
+db.Model(&user).Update("name", "jinzhu") // will set `UpdatedAt` to current time
+```
+
+使用`DeleteAt`字段存储记录的删除时间（逻辑删除），由`gorm`框架实现
+
+只要当前表中有名为`DeleteAt`的字段，执行删除操作时会设置该字段的值为当前时间，但不会物理删除该记录。而且，在执行查询操作时，这些记录不会被找到
+
+#### 索引
+
 如果一个字段名称为`ID`，则`gorm`默认将这个字段设置为`primary_key`，即主键
 
 ```go
@@ -162,11 +208,13 @@ type User struct {
 }
 ```
 
-如果字段名使用驼峰命名方式，如：`CreateAt`，则两个单词间默认使用`_`连接
+手动设置一个字段为`primary_key`
 
 ```go
-type User struct {
-  CreatedAt time.Time // column name is `created_at`
+type Animal struct {
+  AnimalId int64 `gorm:"primary_key"` // set AnimalId to be primary key
+  Name     string
+  Age      int64
 }
 ```
 
@@ -352,6 +400,79 @@ db.HasTable("users")
 
 ### 数据操作
 
+在`gorm`中，对数据的`CRUD`操作，在后台都要经过一系列的处理（并不是`Insert/Update/Delete`的简单语句）
+
+
+
+- `Create`
+
+  源代码文件`callback_create.go`中，对`Create`操作的回调`Hook`进行了说明（默认是`9`个）
+
+  注意：这些回调函数是按照顺序执行的，因此其注册的顺序很重要
+
+  ```go
+  // Define callbacks for creating
+  func init() {
+  	DefaultCallback.Create().Register("gorm:begin_transaction", beginTransactionCallback)
+  	DefaultCallback.Create().Register("gorm:before_create", beforeCreateCallback)
+  	DefaultCallback.Create().Register("gorm:save_before_associations", saveBeforeAssociationsCallback)
+  	DefaultCallback.Create().Register("gorm:update_time_stamp", updateTimeStampForCreateCallback)
+  	DefaultCallback.Create().Register("gorm:create", createCallback)
+  	DefaultCallback.Create().Register("gorm:force_reload_after_create", forceReloadAfterCreateCallback)
+  	DefaultCallback.Create().Register("gorm:save_after_associations", saveAfterAssociationsCallback)
+  	DefaultCallback.Create().Register("gorm:after_create", afterCreateCallback)
+  	DefaultCallback.Create().Register("gorm:commit_or_rollback_transaction", commitOrRollbackTransactionCallback)
+  }
+  ```
+
+- `Delete`
+
+  源代码文件`callback_delete.go`中，对`Delete`操作的回调`Hook`进行了说明（默认是`5`个）
+
+  ```go
+  // Define callbacks for deleting
+  func init() {
+  	DefaultCallback.Delete().Register("gorm:begin_transaction", beginTransactionCallback)
+  	DefaultCallback.Delete().Register("gorm:before_delete", beforeDeleteCallback)
+  	DefaultCallback.Delete().Register("gorm:delete", deleteCallback)
+  	DefaultCallback.Delete().Register("gorm:after_delete", afterDeleteCallback)
+  	DefaultCallback.Delete().Register("gorm:commit_or_rollback_transaction", commitOrRollbackTransactionCallback)
+  }
+  ```
+
+- `Update`
+
+  源代码文件`callback_update.go`中，对`Upate`操作的回调`Hook`进行了说明（默认是`9`个）
+
+  ```go
+  // Define callbacks for updating
+  func init() {
+  	DefaultCallback.Update().Register("gorm:assign_updating_attributes", assignUpdatingAttributesCallback)
+  	DefaultCallback.Update().Register("gorm:begin_transaction", beginTransactionCallback)
+  	DefaultCallback.Update().Register("gorm:before_update", beforeUpdateCallback)
+  	DefaultCallback.Update().Register("gorm:save_before_associations", saveBeforeAssociationsCallback)
+  	DefaultCallback.Update().Register("gorm:update_time_stamp", updateTimeStampForUpdateCallback)
+  	DefaultCallback.Update().Register("gorm:update", updateCallback)
+  	DefaultCallback.Update().Register("gorm:save_after_associations", saveAfterAssociationsCallback)
+  	DefaultCallback.Update().Register("gorm:after_update", afterUpdateCallback)
+  	DefaultCallback.Update().Register("gorm:commit_or_rollback_transaction", commitOrRollbackTransactionCallback)
+  }
+  ```
+
+- `Query`
+
+  源代码文件`callback_query.go`中，对`Query`操作的回调`Hook`进行了说明（默认是`3`个）
+
+  ```go
+  // Define callbacks for querying
+  func init() {
+  	DefaultCallback.Query().Register("gorm:query", queryCallback)
+  	DefaultCallback.Query().Register("gorm:preload", preloadCallback)
+  	DefaultCallback.Query().Register("gorm:after_query", afterQueryCallback)
+  }
+  
+  ```
+
 #### 插入数据
 
 实例化一个数据对象，本例为：`User`类型的实例`user`，使用`Create()`方法将该实例添加到数据库相应的表中
@@ -365,6 +486,22 @@ db.Create(&user)
 
 #### 修改数据
 
+
+
 #### 删除数据
 
 #### 查询数据
+
+#### Hook中操作
+
+用户可以对数据表的`Hook`操作进行定义，在`Hook`中可以对数据进行验证或修改。如果返回`error`则对应的`CRUD`操作被终止
+
+举例：想在`BeforeCreate` 时修改字段的值，使用`scope.SetColumn`方法
+
+```go
+func (user *User) BeforeCreate(scope *gorm.Scope) error {
+  scope.SetColumn("ID", uuid.New())
+  return nil
+}
+```
+
